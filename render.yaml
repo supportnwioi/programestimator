@@ -1,0 +1,16 @@
+# Render Blueprint: deploys the NWIOI Program Cost Estimator as a Node web service.
+services:
+  - type: web
+    name: nwioi-program-estimator
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NWIOI_ADMIN_PASSWORD
+        generateValue: true   # random admin password; view it under Environment in the Render dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false           # optional: set to turn on AI document review

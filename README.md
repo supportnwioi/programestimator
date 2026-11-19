@@ -16,6 +16,10 @@ npm start                       # http://localhost:3000   admin: http://localhos
 | `NWIOI_DATA_DIR` | Where settings, rulesets, estimates, and shares are stored. Default: `./data`. |
 | `PORT` | Default `3000`. |
 
+### Deploy for testing (Render)
+
+`render.yaml` defines a free Render web service. In Render, choose **New → Blueprint** and select this repository. Render builds it and gives you a public URL. It generates a random `NWIOI_ADMIN_PASSWORD`, which you can view under the service's **Environment** tab, and you can optionally set `ANTHROPIC_API_KEY` there. On the free plan, the disk resets on each redeploy or spin-down, so admin settings, estimates and shares do not persist. That is fine for testing, but not for production.
+
 Behind an HTTP proxy, set `NODE_USE_ENV_PROXY=1` so that **Check AASECT for published changes** can reach aasect.org.
 
 ```bash
