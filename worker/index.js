@@ -20,8 +20,11 @@ export class EstimatorContainer extends DurableObject {
   }
 
   async fetch(request) {
-    this.starting ??= this.startAndWaitForPort().finally(() => { this.starting = undefined; });
-    await this.starting;
+    if (!(this.ready && this.ctx.container.running)) {
+      this.starting ??= this.startAndWaitForPort().finally(() => { this.starting = undefined; });
+      await this.starting;
+      this.ready = true;
+    }
     const url = new URL(request.url);
     url.protocol = 'http:';
     url.host = 'container';
@@ -30,12 +33,29 @@ export class EstimatorContainer extends DurableObject {
     return this.ctx.container.getTcpPort(PORT).fetch(forwarded);
   }
 
+  containerEnv() {
+    const env = { PORT: String(PORT), NWIOI_DATA_DIR: '/app/data' };
+    if (this.env.NWIOI_ADMIN_PASSWORD) env.NWIOI_ADMIN_PASSWORD = this.env.NWIOI_ADMIN_PASSWORD;
+    if (this.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = this.env.ANTHROPIC_API_KEY;
+    return env;
+  }
+
+  async fingerprint(env) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(env)));
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
   async startAndWaitForPort() {
     const container = this.ctx.container;
+    const env = this.containerEnv();
+    const fp = await this.fingerprint(env);
+    // A running container keeps the env it started with. When secrets change
+    // (for example a new admin password), restart it so the change takes effect.
+    if (container.running && (await this.ctx.storage.get('envFingerprint')) !== fp) {
+      await container.destroy('Configuration changed');
+    }
     if (!container.running) {
-      const env = { PORT: String(PORT), NWIOI_DATA_DIR: '/app/data' };
-      if (this.env.NWIOI_ADMIN_PASSWORD) env.NWIOI_ADMIN_PASSWORD = this.env.NWIOI_ADMIN_PASSWORD;
-      if (this.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = this.env.ANTHROPIC_API_KEY;
+      await this.ctx.storage.put('envFingerprint', fp);
       container.start({
         image: container.images.base,
         instance: 'lite',
