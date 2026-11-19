@@ -1,0 +1,10 @@
+node_modules
+data
+test
+samples
+worker
+.git
+.wrangler
+wrangler.jsonc
+render.yaml
+*.bundle

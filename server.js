@@ -29,6 +29,8 @@ function publicRuleset(r) {
   };
 }
 
+app.get('/health', (req, res) => res.json({ ok: true }));
+
 app.get('/api/config', (req, res) => {
   const s = store.settings.get();
   const paths = ['sex_therapist', 'sexuality_counselor', 'sexuality_educator'].map((k) => store.rulesets.active(k)).filter(Boolean).map(publicRuleset);
@@ -130,7 +132,9 @@ app.post('/api/estimates/:id/share', upload.array('documents', 20), (req, res) =
 });
 
 // ---------------- admin ----------------
-const ADMIN_PASSWORD = process.env.NWIOI_ADMIN_PASSWORD || 'nwioi-demo-admin';
+// In production, never fall back to the published demo password.
+const ADMIN_PASSWORD = process.env.NWIOI_ADMIN_PASSWORD
+  || (process.env.NODE_ENV === 'production' ? crypto.randomBytes(12).toString('base64url') : 'nwioi-demo-admin');
 const sessions = new Map();
 const cookie = (req) => Object.fromEntries((req.headers.cookie || '').split(';').map((c) => c.trim().split('=').map(decodeURIComponent)).filter((x) => x[0]));
 function requireAdmin(req, res, next) {
@@ -188,7 +192,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   app.listen(PORT, () => {
     console.log(`NWIOI estimator running at http://localhost:${PORT}  (admin: /admin)`);
     console.log(`Document review: ${aiAvailable() ? 'Claude (AI)' : 'offline demo extractor — set ANTHROPIC_API_KEY for AI review'}`);
-    if (!process.env.NWIOI_ADMIN_PASSWORD) console.log('Admin password: nwioi-demo-admin (set NWIOI_ADMIN_PASSWORD to change)');
+    if (!process.env.NWIOI_ADMIN_PASSWORD) console.log(`Admin password: ${ADMIN_PASSWORD} (set NWIOI_ADMIN_PASSWORD to choose one)`);
   });
 }
 export default app;
