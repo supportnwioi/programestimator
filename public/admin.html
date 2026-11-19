@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>NWIOI Estimator Admin</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+    .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .diff { font: 12px/1.45 ui-monospace, Menlo, monospace; max-height: 320px; overflow: auto; background: var(--surface-2); border-radius: 8px; padding: 8px; white-space: pre-wrap; }
+    .diff .added { color: var(--ok); } .diff .removed { color: var(--danger); text-decoration: line-through; }
+    textarea.json { font: 12px/1.45 ui-monospace, Menlo, monospace; min-height: 380px; }
+    main.wrap { max-width: 1040px; }
+    pre.small { white-space: pre-wrap; font-size: 12px; }
+  </style>
+  <script type="module" src="/admin.js"></script>
+</head>
+<body>
+  <header class="site"><div class="wrap"><div class="between"><div class="brand"><span class="mark" aria-hidden="true">N</span><div><strong>NWIOI Estimator</strong><span>Private administration</span></div></div><button id="logout" hidden>Sign out</button></div></div></header>
+  <main class="wrap" id="admin"><p class="loading">Loading…</p></main>
+</body>
+</html>

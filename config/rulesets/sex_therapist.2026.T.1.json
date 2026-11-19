@@ -1,0 +1,294 @@
+{
+  "id": "sex_therapist@2026.T.1",
+  "path": "sex_therapist",
+  "pathName": "Sex Therapist",
+  "credential": "AASECT Certified Sex Therapist",
+  "version": "2026.T.1",
+  "status": "approved",
+  "enabled": true,
+  "verifiedAt": "2026-11-19",
+  "approvedAt": "2026-11-19",
+  "approvedBy": "Initial proof-of-concept configuration (pending NWIOI sign-off)",
+  "creditRules": {
+    "academicSemesterCreditClockHours": 15,
+    "academicMultiplier": 1,
+    "aasectCeMultiplier": 1,
+    "nonAasectCeMultiplier": 0.5,
+    "note": "Academic coursework counts 1 clock hour = 1 AASECT CE hour (a 3-credit semester course = 45 clock hours). AASECT sponsored/approved CE = 1:1. Non-AASECT CE (APA, NCHEC, ACCME, etc.) counts at half value. Final acceptance is at the discretion of the AASECT Certification Committee."
+  },
+  "applicantNote": "Applicants are held to the requirements in effect when they enter into a supervision contract (or may choose the most recent requirements).",
+  "sources": [
+    {
+      "title": "AASECT Requirements for Sex Therapist Certification",
+      "url": "https://www.aasect.org/aasect-requirements-sex-therapist-certification",
+      "retrievedAt": "2026-11-19",
+      "requirementsVersion": "2026.T.1",
+      "contentHash": "sha256:47af0f1fa60b625bb335bcfda0aebab4ab9e2f1f1cbdba859077f181b4994090",
+      "snapshotFile": "config/source-snapshots/sex_therapist.txt"
+    }
+  ],
+  "terms": {
+    "practitioner": "sex therapist",
+    "clientWork": "clinical treatment of clients with sexual concerns",
+    "supervisorTitle": "AASECT Certified Sex Therapist Supervisor",
+    "philosophy": "therapy philosophy statement"
+  },
+  "requirements": [
+    {
+      "key": "core",
+      "kind": "hours",
+      "label": "Core knowledge",
+      "longLabel": "Human Sexuality Education: Core Knowledge Areas",
+      "sourceSection": "6",
+      "totalHours": 90,
+      "synchronousMin": 15,
+      "areaMin": 3,
+      "areaMax": 20,
+      "areaTerm": "Core Knowledge Area",
+      "areaTermShort": "CKA",
+      "areas": [
+        {
+          "key": "A",
+          "label": "Ethics and ethical behavior",
+          "timeSensitive": false
+        },
+        {
+          "key": "B",
+          "label": "Developmental sexuality from a bio-psycho-social perspective across the life course",
+          "timeSensitive": false
+        },
+        {
+          "key": "C",
+          "label": "Socio-cultural and familial factors in relation to sexual values and behaviors",
+          "timeSensitive": false
+        },
+        {
+          "key": "D",
+          "label": "Sexual orientation and/or gender identity",
+          "timeSensitive": false
+        },
+        {
+          "key": "E",
+          "label": "Intimacy skills, intimate relationships, interpersonal relationships and family dynamics",
+          "timeSensitive": false
+        },
+        {
+          "key": "F",
+          "label": "Diversities in sexual expression and lifestyles (relationship structures, sexually diverse communities)",
+          "timeSensitive": false
+        },
+        {
+          "key": "G",
+          "label": "Sexual and reproductive anatomy/physiology",
+          "timeSensitive": true
+        },
+        {
+          "key": "H",
+          "label": "Health/medical factors that may influence sexuality",
+          "timeSensitive": true
+        },
+        {
+          "key": "I",
+          "label": "Range of sexual functioning and behavior, from optimal to challenging",
+          "timeSensitive": false
+        },
+        {
+          "key": "J",
+          "label": "Sexual exploitation, including sexual abuse, sexual harassment and sexual assault",
+          "timeSensitive": false
+        },
+        {
+          "key": "K",
+          "label": "Sexuality and technology (e.g., social media, generative AI)",
+          "timeSensitive": true
+        },
+        {
+          "key": "L",
+          "label": "Substance use/abuse and sexuality",
+          "timeSensitive": true
+        },
+        {
+          "key": "M",
+          "label": "Pleasure enhancement skills",
+          "timeSensitive": false
+        },
+        {
+          "key": "N",
+          "label": "Learning theory and its application",
+          "timeSensitive": false
+        },
+        {
+          "key": "O",
+          "label": "Professional communication and personal reflection skills",
+          "timeSensitive": false
+        },
+        {
+          "key": "P",
+          "label": "History of the discipline of sex research, theory, education, counseling and therapy",
+          "timeSensitive": false
+        },
+        {
+          "key": "Q",
+          "label": "Principles of sexuality research and research methods",
+          "timeSensitive": false
+        }
+      ],
+      "countingNotes": [
+        "At least 3 clock hours documented in each of the 17 CKAs.",
+        "Remaining hours may be spread among CKAs, maximum 20 hours in any one CKA; hours above 20 in a CKA do not count toward the 90.",
+        "15 of the 90 hours must be synchronous (in person or virtual).",
+        "CKAs G, H, K and L are time sensitive.",
+        "Core Knowledge and skills training are documented separately; the same hour is not counted in both."
+      ],
+      "checklistTerm": "Core Knowledge Area"
+    },
+    {
+      "key": "training",
+      "kind": "hours",
+      "label": "Sex therapy training",
+      "longLabel": "Sex Therapy Skills Training",
+      "sourceSection": "7",
+      "totalHours": 60,
+      "synchronousMin": 30,
+      "areaMin": 3,
+      "areaMax": 20,
+      "areaTerm": "Sex Therapy Skills Training content area",
+      "areaTermShort": "content area",
+      "specificMin": null,
+      "areas": [
+        {
+          "key": "A",
+          "label": "Theory and methods of sex-related psychotherapy, including several different models",
+          "timeSensitive": false
+        },
+        {
+          "key": "B",
+          "label": "Techniques of sex-related assessment and diagnosis of the DSM \"Psychosexual Disorders\"",
+          "timeSensitive": false
+        },
+        {
+          "key": "C",
+          "label": "Intervention in relationship systems experiencing sex and intimacy problems",
+          "timeSensitive": true
+        },
+        {
+          "key": "D",
+          "label": "Medical intervention in the evaluation and treatment of psychosexual disorders",
+          "timeSensitive": true
+        },
+        {
+          "key": "E",
+          "label": "Principles of consultation, collaboration, and referral",
+          "timeSensitive": false
+        },
+        {
+          "key": "F",
+          "label": "Ethical decision-making and best practice",
+          "timeSensitive": false
+        }
+      ],
+      "conditional": [
+        {
+          "key": "couples",
+          "label": "couples counseling training",
+          "hours": 16,
+          "area": "C",
+          "question": "hasCouplesTraining",
+          "appliesWhen": "no",
+          "note": "Therapists with no documented graduate or postgraduate training in couples counseling must acquire 16 hours of couples counseling training as part of the 60 hours."
+        }
+      ],
+      "countingNotes": [
+        "At least 3 hours in each content area A–F, maximum 20 hours in any one content area.",
+        "30 of the 60 hours must be synchronous through an academic sex therapy program, a comprehensive sex therapy program, or AASECT approved sex therapy training.",
+        "Training must teach specific sex therapy techniques and interventions, not just theory.",
+        "Up to 5 additional supervision hours (beyond the 50) may be applied to skills training; they cannot also count as supervision."
+      ],
+      "checklistTerm": "content area"
+    },
+    {
+      "key": "supervision",
+      "kind": "supervision",
+      "label": "Supervision",
+      "longLabel": "Supervision",
+      "sourceSection": "9",
+      "totalHours": 50,
+      "individualMin": 25,
+      "groupMax": 25,
+      "primarySupervisorIndividualMin": 20,
+      "minMonths": 18,
+      "maxHoursPerMonth": 6,
+      "alternative": {
+        "question": "tenYearsSexTherapy",
+        "appliesWhen": "yes",
+        "totalHours": 25,
+        "individualMin": 12.5,
+        "groupMax": 12.5,
+        "label": "10+ years of post-degree sex therapy practice (average 20 hours/week)",
+        "note": "Requires an endorsement of clinical skill history by an AASECT Certified Sex Therapist; 18-month minimum still applies."
+      },
+      "countingNotes": [
+        "Supervision must be with an AASECT Certified Sex Therapist Supervisor under a signed supervision contract; hours before the contract do not count.",
+        "Minimum 25 individual (one-to-one) hours, 20 of them with a Primary Supervisor; remaining 25 may be individual or group.",
+        "Supervision spans at least 18 months, maximum 6 hours per month."
+      ]
+    },
+    {
+      "key": "sar",
+      "kind": "sar",
+      "label": "SAR",
+      "longLabel": "Attitudes and Values Training Experience (e.g., Sexuality Attitude Reassessment)",
+      "sourceSection": "8",
+      "hours": 14,
+      "mustBeAasectApproved": true,
+      "attendeeOnly": true,
+      "countingNotes": [
+        "Minimum 14 clock hours of structured group, process-oriented experience (e.g., a SAR).",
+        "The SAR must be AASECT sponsored or approved; the applicant must have attended (not facilitated).",
+        "May be virtual or in person.",
+        "Applicant also submits a 1-page therapy philosophy (completed outside NWIOI)."
+      ]
+    }
+  ],
+  "outside": [
+    {
+      "key": "degree",
+      "question": "hasClinicalDegree",
+      "flagWhen": [
+        "no",
+        "unsure"
+      ],
+      "label": "Advanced clinical degree that included psychotherapy training, plus 2 years (master's) or 1 year (doctoral) of post-degree clinical experience"
+    },
+    {
+      "key": "license",
+      "question": "hasLicense",
+      "flagWhen": [
+        "no",
+        "unsure"
+      ],
+      "label": "A valid state license or certificate to practice psychotherapy independently (psychology, medicine, social work, counseling, nursing, or MFT)"
+    },
+    {
+      "key": "clinical",
+      "question": "clinicalHoursUnderContract",
+      "kind": "hours",
+      "target": 300,
+      "label": "300 hours of clinical treatment of clients with sexual concerns while under an AASECT supervision contract"
+    },
+    {
+      "key": "membership",
+      "question": "aasectMember",
+      "flagWhen": [
+        "no",
+        "unsure"
+      ],
+      "label": "AASECT membership (Early Career Professional, Professional, Retired, or Emeritus), maintained throughout supervision"
+    },
+    {
+      "key": "application",
+      "always": true,
+      "label": "Application materials: therapy philosophy statement, supervisor and colleague endorsement letters, and the AASECT application fee"
+    }
+  ]
+}

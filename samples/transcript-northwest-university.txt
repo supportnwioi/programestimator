@@ -1,0 +1,11 @@
+Northwest University
+Official Academic Transcript
+Student: Sample Student          Program: M.A. Clinical Mental Health Counseling
+Term: Spring 2022 (semester system)
+
+Course       Title                                         Credits  Grade
+CMHC 501     Counseling Theories                           3.0      A
+HSX 610      Human Sexual Anatomy and Health               3.0      A
+CMHC 540     Couples and Family Counseling                 3.0      A-
+HSX 615      Sexual Orientation and Gender Identity        2.0      A
+CMHC 590     Practicum                                     3.0      P
