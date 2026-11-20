@@ -18,9 +18,16 @@ Remove "Tier I Comprehensive", "Tier II Core", "Tier III Modular" and "Tier III:
 
 ## Calculator link
 
-Add a button **See my tuition & how my training counts** near each tier summary and in the AASECT Certification menu. Supporting line:
+Add a button **See what my prior training could save** near each tier summary and in the AASECT Certification menu. Supporting line:
 
-> Choose your credential to see Core Program tuition, then see how your prior training could count. No email required.
+> Choose your credential to see Core Program tuition and À La Carte side by side, then see what your prior training could save. No email required.
+
+The calculator page opens with:
+
+> **See what your prior training could save you.**
+> Graduate coursework and continuing education you've already completed may count toward your AASECT credential.
+
+Use **Core Program** and **À La Carte** as the main headings, with "Tier I" and "Tier II" as small labels beside them.
 
 ## Prior-training section (use on the AASECT Certification page and in the calculator)
 

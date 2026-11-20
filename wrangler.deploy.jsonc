@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Same name as the existing Worker, so it keeps the same workers.dev URL.
+  "name": "programestimator",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-19",
+  "observability": { "enabled": true },
+  // DEV SITE: preview mode shows draft prices (labeled) to everyone.
+  // Remove this before using this Worker as the public site.
+  "vars": { "NWIOI_PREVIEW": "1" },
+  "containers": [
+    {
+      "class_name": "EstimatorContainer",
+      "scheduling_policy": "durable_object",
+      "images": { "base": { "image": "registry.cloudflare.com/f6ee97e5a759676ea0d9397f66d028b7/nwioi-estimator@sha256:58bddb83144976a8dcd6bb9e21160f9bcbcfb80a97673ea493c8978cbef90dc4" } }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "ESTIMATOR", "class_name": "EstimatorContainer" }]
+  },
+  "exports": {
+    "EstimatorContainer": { "type": "durable-object", "storage": "sqlite" }
+  }
+  // Secrets (set with `npx wrangler secret put <NAME>` or in the dashboard):
+  //   NWIOI_ADMIN_PASSWORD  admin password (required for a shared test site)
+  //   ANTHROPIC_API_KEY     optional; turns on AI document review
+}

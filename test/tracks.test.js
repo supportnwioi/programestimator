@@ -73,6 +73,9 @@ test('25 prior CEUs → 26 remaining → $910 additional → combined $9,110 / $
     assert.equal(pr.combined.complete, true);
   }
   assert.deepEqual(r.map((pr) => pr.combined.display), ['$9,110', '$8,360', '$7,860']);
+  assert.deepEqual(r.map((pr) => pr.priorSavings.display), ['$875', '$875', '$875'], '25 counted hours × planning rate');
+  assert.equal(est('sex_therapist', { core: 0, skills: 0 }).prior.priorSavings, null, 'no savings line when nothing counts');
+  assert.equal(est('sex_therapist', { core: 15, skills: 10 }, { preview: false }).prior.priorSavings, null, 'hidden while the planning rate is draft');
 });
 
 test('outside coursework: CEUs taken elsewhere leave NWIOI tuition unchanged and add the cost the visitor enters', () => {

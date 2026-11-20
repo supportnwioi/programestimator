@@ -167,6 +167,8 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     const outsideCeus = cov.remaining - nwioiCeus;
     const outsideCost = outsideCeus > 0 ? dollars(input.additional?.outsideCost) : null;
     const additionalNwioi = planRateVisible ? nwioiCeus * planRate.perCeu : null;
+    // What prior training may save in additional coursework, at the planning rate.
+    prior.priorSavings = planRateVisible && cov.counted > 0 ? { amount: cov.counted * planRate.perCeu, display: money(cov.counted * planRate.perCeu) } : null;
     prior.nwioiAdditionalCeus = nwioiCeus;
     prior.outsideCeus = outsideCeus;
     prior.outsideCost = outsideCost;

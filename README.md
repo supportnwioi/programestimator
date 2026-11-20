@@ -55,10 +55,10 @@ AI is used only to summarize documents, extract course details and **explicitly 
 
 ## Track finder & tuition (default page)
 
-Headline **“Find your NWIOI path and tuition”** (suggested website link text: **“See my tuition & how my training counts”**). NWIOI offers two tiers per credential:
+Headline **“See what your prior training could save you.”** followed by one sentence about coursework already completed. NWIOI offers two options per credential:
 
-- **Tier I · Core Program:** 99 CEUs of NWIOI coursework, supervision for the credential, and SAR, at a fixed tuition. SAR is always included, and tuition stays the same if the student has already completed one.
-- **Tier II · À La Carte:** individual courses, NWIOI supervision and SAR, bought as needed.
+- **Core Program · Tier I:** 99 CEUs of NWIOI coursework, supervision for the credential, and SAR at a fixed tuition. SAR is always included, and tuition stays the same if the student has already completed one.
+- **À La Carte · Tier II:** individual courses, NWIOI supervision and SAR, bought as needed.
 
 | Credential | Core tuition | Pay in full (7%) | Supervision in Core |
 |---|---:|---:|---|
@@ -66,14 +66,27 @@ Headline **“Find your NWIOI path and tuition”** (suggested website link text
 | Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours |
 | Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours |
 
-**Flow.** The visitor picks a credential (or “I’m still deciding”), and Core tuition, pay in full and what’s included appear right away. Under the marketing copy (“See how far your prior training can take you…”), **See how your prior training could count** opens the questions:
-1. **Core Knowledge Areas (CKAs):** up to 90 hours.
-2. **Skills training:** up to 60 hours, using the credential’s own label.
-3. **Supervision completed toward this credential**, **SAR** and **where they want to do supervision**. These only decide whether À La Carte may fit better.
+**Page order:**
+1. Headline.
+2. Credential picker.
+3. Two compact option cards, right under the picker. They sit side by side on desktop and stack on mobile.
+   - **Core Program** card: tuition, pay in full, “99 CEUs, supervision, and SAR included”, and **See what my prior training could save**.
+   - **À La Carte** card: “Choose individual courses, supervision, or SAR.” plus **Build my estimate**. The estimated total appears once selections are made.
+4. **Compare full details**, which stays collapsed.
+5. The flow the visitor picked:
+   - **Prior training (Core):** just the two education inputs (CKAs, credential-specific skills training) plus the credit helper. The personalized result sits directly beneath them, leading with “Your prior training could save you about $875 in additional coursework.” when the answers support it. That's the counted hours × the planning rate. Then come the remaining CEUs, the combined cost, and **Review my prior training**. The approved marketing paragraph follows the result.
+   - **À La Carte builder:** where to do supervision, supervision completed, SAR, and the quantities to buy. It shows one total and a “See what’s included” list.
 
-Each hours question has a slider, a number box, “None yet” and “I’m not sure”. Unanswered, zero and unsure stay distinct. A semester-credit helper adds converted hours to either education category. No email, uploads or clinical-hour questions are asked.
+The sticky estimate bar only slides in once the option cards, which already show the price, have scrolled out of view.
 
-**Three-part summary under Tier I** (`priorCoverage` in `src/tracks.js`):
+**Styling** follows nwioi.com and is scoped to the finder page:
+- Colors: dark brown band (#482117), gold/tan square buttons (#D3A468), olive accent (#3D4C28).
+- Fonts: Libre Baskerville headings, standing in for the site’s Bookmania, and Manrope text, both from Google Fonts.
+- Mobile: tap targets are 44px or more, and body text is 16px or more.
+
+No email, uploads or clinical-hour questions are asked.
+
+**Prior-training result** (`priorCoverage` in `src/tracks.js`). The details are under “How we worked this out”:
 1. **What you may already have covered.** Overlap is counted once.
 2. **What NWIOI includes:** 99 CEUs, plus supervision and SAR.
 3. **What you may still need.** This shows the remaining CEUs, a box for how many to take with NWIOI, an optional box for the expected cost of coursework with other institutes (“Other providers set their own prices”), and the **additional NWIOI coursework** cost at the planning rate ($35/CEU, draft). It ends with **NWIOI tuition** plus that, giving the **Estimated combined cost** and the planning sentence.
@@ -84,11 +97,11 @@ Each hours question has a slider, a number box, “None yet” and “I’m not 
 
 Example: 25 prior CEUs → 26 remaining → $910 → combined $9,110 / $8,360 / $7,860.
 
-**Tier II · À La Carte** shows one estimated NWIOI total and an expandable **See what’s included** list of quantities only. Unit rates, formulas, line amounts and subtotals never leave the server. **Change what you’d buy** adjusts the quantities. SAR and NWIOI supervision are included only when selected. With outside supervision: “You’ll pay your outside supervisor separately.” In the comparison beside Core it’s labeled **Estimated cost if purchased separately**.
+**À La Carte** shows one estimated NWIOI total and an expandable **See what’s included** list of quantities only. Unit rates, formulas, line amounts and subtotals never leave the server. The quantity boxes in the builder adjust it. SAR and NWIOI supervision are included only when selected. With outside supervision: “You’ll pay your outside supervisor separately.” On its option card, it’s labeled **Estimated cost if purchased separately**.
 
-**Package savings** appear on the Core card only when the separate purchase covers the same components and quantities: 99 CEUs, the same individual hours, the same group hours, and SAR. Group hours must divide evenly into À La Carte’s 3-hour sessions. So Sex Therapist (save $2,585) and Counselor (save $590) show savings. Educator (20 group hours) doesn’t.
+**Package savings** appear under **Compare full details** only when the separate purchase covers the same components and quantities: 99 CEUs, the same individual hours, the same group hours, and SAR. Group hours must divide evenly into À La Carte’s 3-hour sessions. So Sex Therapist (save $2,585) and Counselor (save $590) show savings. Educator (20 group hours) doesn’t.
 
-**Recommendation** (only once the answers support it): À La Carte if supervision will be outside NWIOI, or at least 20% of the supervision target is done. Otherwise Core. The main panel always centers on Core. If À La Carte is recommended, a callout shows its estimate and links to the comparison, and the top bar switches to it.
+**Recommendation** (only once the answers support it): À La Carte if supervision will be outside NWIOI, or at least 20% of the supervision target is done. Otherwise Core. The recommended card gets an outline and a “Recommended for you” chip. While the À La Carte builder is open, the bar shows its estimate.
 
 **Next steps:**
 - Primary: **Review my prior training** (admissions booking).

@@ -250,3 +250,125 @@ details.expand > summary { cursor: pointer; color: var(--accent); font-weight: 6
 .combined-table td.amt strong, [data-testid="combined-cost"] { font-weight: 700; }
 [data-testid="combined-cost"].flash, [data-testid="price-alaCarte"].flash { animation: compare-flash .7s ease-out; }
 .savings { margin: 4px 0; }
+
+/* =====================================================================
+   NWIOI brand (track finder page only), matched to nwioi.com:
+   dark brown band, gold/tan square buttons, olive accent, serif headings
+   (Libre Baskerville standing in for Bookmania) and Manrope for UI text.
+   ===================================================================== */
+body.finder {
+  --brown: #482117; --tan: #d3a468; --tan-deep: #b17036; --olive: #3d4c28; --navy: #2c3f54;
+  --bg: #faf8f5; --surface: #ffffff; --surface-2: #f6f1ea; --text: #1f1a17; --muted: #5f5852; --line: #e7e1dc;
+  --accent: #482117; --accent-ink: #ffffff; --accent-soft: #f6ede4; --ok: #3d4c28; --ok-soft: #eaeee2;
+  --btn-bg: #d3a468; --btn-ink: #2b130d; --btn-hover: #c8955a;
+  --radius: 6px; --shadow: 0 1px 2px rgba(72,33,23,.06);
+  --serif: "Libre Baskerville", Georgia, "Times New Roman", serif;
+  font-family: Manrope, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16.5px; line-height: 1.6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body.finder {
+    --bg: #17120f; --surface: #221b17; --surface-2: #2b221d; --text: #f3ece6; --muted: #bfb3a9; --line: #3d322b;
+    --accent: #e3bd8b; --accent-ink: #1b120d; --accent-soft: #3a2b20; --ok: #b9c99a; --ok-soft: #27301c;
+    --btn-bg: #d3a468; --btn-ink: #22100a; --btn-hover: #e0b47c; --navy: #c9d4e0; --shadow: none;
+  }
+}
+:root[data-theme="dark"] body.finder {
+  --bg: #17120f; --surface: #221b17; --surface-2: #2b221d; --text: #f3ece6; --muted: #bfb3a9; --line: #3d322b;
+  --accent: #e3bd8b; --accent-ink: #1b120d; --accent-soft: #3a2b20; --ok: #b9c99a; --ok-soft: #27301c;
+  --btn-bg: #d3a468; --btn-ink: #22100a; --btn-hover: #e0b47c; --navy: #c9d4e0; --shadow: none;
+}
+body.finder h1, body.finder h2, body.finder .opt-name, body.finder .brand strong { font-family: var(--serif); font-weight: 400; letter-spacing: 0; }
+body.finder .brand-strip { height: 8px; background: var(--brown); }
+body.finder header.site { border-bottom: 1px solid var(--line); }
+body.finder .brand .mark { background: var(--brown); color: var(--tan); border-radius: 2px; font-family: var(--serif); }
+body.finder main.wrap { max-width: 920px; }
+body.finder .card { border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; }
+body.finder .hero { margin: 26px 0 14px; }
+body.finder .hero h1 { font-size: clamp(1.7rem, 4.4vw, 2.5rem); line-height: 1.2; margin-bottom: .5rem; }
+body.finder .hero h1::after { content: ""; display: block; width: 120px; height: 1px; background: var(--tan-deep); margin-top: 14px; }
+body.finder .lede { font-size: 1.08rem; color: var(--navy); max-width: 60ch; }
+body.finder a { color: var(--accent); }
+
+/* buttons: square, tan, like the site */
+body.finder .btn, body.finder button { border-radius: 2px; min-height: 44px; }
+body.finder .btn.primary, body.finder button.primary { background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-ink); font-weight: 700; }
+body.finder .btn.primary:hover, body.finder button.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); }
+body.finder .btn:focus-visible, body.finder button:focus-visible, body.finder input:focus-visible, body.finder summary:focus-visible { outline: 3px solid var(--olive); outline-offset: 2px; }
+body.finder button.link { min-height: 0; color: var(--accent); font-weight: 600; }
+body.finder .chip-btn { min-height: 36px; border-radius: 999px; }
+body.finder .chip-btn[aria-pressed="true"], body.finder .seg label:has(input:checked) { border-color: var(--brown); background: var(--accent-soft); }
+body.finder .seg label { min-height: 44px; padding: 8px 14px; border-radius: 2px; }
+body.finder .picker fieldset { margin: 0; }
+body.finder .picker legend { font-family: var(--serif); font-size: 1.12rem; font-weight: 400; margin-bottom: 10px; }
+body.finder .chip.ok { background: var(--ok-soft); color: var(--ok); }
+body.finder input[type=range] { accent-color: var(--tan-deep); }
+
+/* the two option cards, right under the picker */
+.options-for { margin: 4px 0 8px; }
+.opt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 10px; }
+.opt-card { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--tan); border-radius: var(--radius); padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow); }
+.opt-card[data-track="alaCarte"] { border-top-color: var(--olive); }
+.opt-card.is-recommended { box-shadow: 0 0 0 2px var(--olive); }
+.opt-h { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.opt-name { font-size: 1.5rem; }
+.tier { font-family: Manrope, system-ui, sans-serif; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.opt-price { font-size: 2rem; font-weight: 700; line-height: 1.1; margin: 6px 0 0; letter-spacing: -.01em; }
+.opt-price.confirm, .opt-price-text { font-size: 1.2rem; font-weight: 600; }
+.opt-sub { margin: 0; color: var(--muted); }
+.opt-key { font-weight: 600; margin: 8px 0 4px; }
+.opt-btn { margin-top: auto; width: 100%; justify-content: center; text-align: center; }
+.opt-card .scholarship { margin: 8px 0 0; }
+.opt-card .chip { align-self: flex-start; }
+.opt-price.flash, [data-testid="ala-card-price"].flash { animation: compare-flash .7s ease-out; }
+
+/* full comparison, collapsed */
+body.finder .compare { padding: 10px 16px; margin-bottom: 14px; border-radius: var(--radius); }
+body.finder .compare > summary { font-weight: 600; color: var(--accent); min-height: 32px; display: flex; align-items: center; }
+body.finder .compare > summary::before { content: "▸"; margin-right: 8px; color: var(--tan-deep); }
+body.finder .compare[open] > summary::before { content: "▾"; }
+.table-wrap { overflow-x: auto; }
+.compare-table { margin: 8px 0; min-width: 0; }
+.compare-table th[scope=row] { font-weight: 600; white-space: nowrap; color: var(--muted); }
+.compare-table thead th { font-family: var(--serif); font-weight: 400; font-size: 1rem; }
+
+/* flows: inputs, then the personalized result right beneath */
+body.finder .flow { border-top: 4px solid var(--tan); scroll-margin-top: 12px; }
+body.finder #ala-flow { border-top-color: var(--olive); }
+.flow h2 { font-size: 1.45rem; margin-bottom: 6px; }
+.result-box { margin-top: 14px; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--radius); padding: 14px 16px; }
+.save-lead { font-family: var(--serif); font-size: 1.25rem; line-height: 1.4; margin: 0 0 6px; color: var(--text); }
+.save-lead strong { color: var(--olive); }
+.remaining { margin: 0 0 8px; }
+.result-box .additional .field input { max-width: 150px; display: block; margin-bottom: 2px; }
+.result-box .cta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ala-total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 8px; }
+.ala-total strong { font-size: 1.6rem; border-radius: 4px; padding: 0 4px; }
+.ala-total strong.flash { animation: compare-flash .7s ease-out; }
+.switch { margin: 0 0 14px; }
+.footnote { margin-top: 18px; }
+.steps { padding-left: 20px; }
+
+/* sticky bar: fixed, slides in only after the option cards scroll away */
+body.finder .estimate-bar { position: fixed; top: 0; left: 0; right: 0; margin: 0; background: var(--brown); color: #fff; transform: translateY(-110%); transition: transform .2s ease; visibility: hidden; }
+body.finder .estimate-bar.is-shown { transform: none; visibility: visible; }
+body.finder .estimate-bar .bar-btn { background: var(--tan); color: #2b130d; border-radius: 2px; }
+@media (prefers-reduced-motion: reduce) { body.finder .estimate-bar { transition: none; } }
+
+@media (max-width: 680px) {
+  .opt-grid { grid-template-columns: 1fr; gap: 10px; }
+  .opt-card { padding: 14px 16px; }
+  .opt-price { font-size: 1.75rem; }
+  body.finder .hero { margin-top: 18px; }
+  body.finder .card { padding: 16px; }
+  .compare-table th[scope=row] { white-space: normal; }
+}
+@media (max-width: 680px) {
+  body.finder .picker .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; width: 100%; }
+  body.finder .picker .seg label { padding: 8px 10px; font-size: .95rem; line-height: 1.25; }
+  body.finder .picker legend { font-size: 1.05rem; margin-bottom: 8px; }
+  body.finder .hero h1::after { margin-top: 10px; }
+  body.finder .lede { font-size: 1rem; }
+  .options-for { margin-top: 0; }
+}
+.prior-copy { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
