@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Preview deployment: a separate Worker that shows draft tuition (labeled) to everyone.
+  // Deploy with: npx wrangler deploy -c wrangler.preview.jsonc
+  "name": "programestimator-preview",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-19",
+  "observability": { "enabled": true },
+  "vars": { "NWIOI_PREVIEW": "1" },
+  "containers": [
+    {
+      "class_name": "EstimatorContainer",
+      "scheduling_policy": "durable_object",
+      "images": { "base": { "dockerfile": "./Dockerfile" } }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "ESTIMATOR", "class_name": "EstimatorContainer" }]
+  },
+  "exports": {
+    "EstimatorContainer": { "type": "durable-object", "storage": "sqlite" }
+  }
+}

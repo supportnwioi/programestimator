@@ -37,6 +37,8 @@ export class EstimatorContainer extends DurableObject {
     const env = { PORT: String(PORT), NWIOI_DATA_DIR: '/app/data' };
     if (this.env.NWIOI_ADMIN_PASSWORD) env.NWIOI_ADMIN_PASSWORD = this.env.NWIOI_ADMIN_PASSWORD;
     if (this.env.ANTHROPIC_API_KEY) env.ANTHROPIC_API_KEY = this.env.ANTHROPIC_API_KEY;
+    // Preview deployments show draft tuition to everyone, labeled as drafts.
+    if (this.env.NWIOI_PREVIEW === '1') env.NWIOI_PREVIEW = '1';
     return env;
   }
 
