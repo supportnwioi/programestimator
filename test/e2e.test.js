@@ -561,3 +561,33 @@ test('Track finder: live estimate bar stays pinned to the top and flashes on cha
   await shot(page, '13-finder-mobile');
   await page.close();
 });
+
+test('Track finder: with a fixed package shown, moving the sliders visibly changes the live Modular comparison', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await answerFinder(page, { core: 0, skills: 0, supervision: 0, sar: 'no', where: 'nwioi' });
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="rec-name"]'), 'Tier I · Comprehensive');
+  assert.match(await text(page, '[data-testid="fixed-note"]'), /This package price is fixed/);
+  const prices = [];
+  for (const [c, s] of [[0, 0], [20, 10], [35, 15]]) {
+    await page.fill('#core-num', String(c));
+    await page.fill('#skills-num', String(s));
+    await settled(page);
+    assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,500', 'package stays fixed');
+    prices.push(await text(page, '[data-testid="modular-live-price"]'));
+  }
+  assert.equal(new Set(prices).size, 3, `live comparison changes with each answer: ${prices.join(' → ')}`);
+  assert.match(await text(page, '#price-bar'), /Only what you need: \$/);
+  // The keyboard slider also moves it.
+  const before = await text(page, '[data-testid="modular-live-price"]');
+  await page.focus('#core-range');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+  await settled(page);
+  assert.notEqual(await text(page, '[data-testid="modular-live-price"]'), before);
+  // "See how this is calculated" opens the comparison with the math.
+  await page.click('[data-open-compare]');
+  assert.equal(await page.evaluate(() => document.getElementById('compare').open), true);
+  assert.match(await text(page, '[data-track="modular"] [data-testid="modular-math"]'), /× \$35/);
+  await page.close();
+});

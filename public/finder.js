@@ -192,6 +192,23 @@ function trackCard(t, recommendedKey, controlsShownAbove) {
   </article>`;
 }
 
+// Package prices are fixed, so show the number that does move with the answers:
+// what buying only what's still needed (Modular) would cost.
+function modularComparison(t) {
+  if (!t.price.fixed) return '';
+  const m = result.tracks.modular;
+  const fixedNote = '<p class="small muted" data-testid="fixed-note">This package price is fixed: prior training doesn’t change it. Your answers change which track fits and what buying only what you need would cost.</p>';
+  if (m.price.amount === null || m.price.amount === undefined) {
+    return `${fixedNote}<div class="compare-live" data-testid="modular-live"><span class="small">Buying only what you still need (${esc(m.name)})</span><strong class="small">${esc(m.price.confirmText || 'Answer the hours questions to see this estimate')}</strong></div>`;
+  }
+  const value = m.price.complete === false ? `${m.price.display} so far` : m.price.display;
+  return `${fixedNote}<div class="compare-live" data-testid="modular-live">
+      <span class="small">Buying only what you still need (${esc(m.name)})</span>
+      <strong data-testid="modular-live-price">${esc(value)}</strong>
+      <a href="#compare" class="small" data-open-compare>See how this is calculated</a>
+    </div>`;
+}
+
 function resultPanel() {
   if (!state.path) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Choose the credential you’re working toward to see what’s included and what you’d pay NWIOI.</p>`;
   if (deciding()) {
@@ -210,6 +227,7 @@ function resultPanel() {
     <h2 class="rec-name" data-testid="rec-name">${esc(t.name)}</h2>
     ${t.lead ? `<p class="lead">${esc(t.lead)}</p>` : ''}
     <div aria-live="polite" aria-atomic="true">${priceBlock(t, { big: true })}</div>
+    ${modularComparison(t)}
     <p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>
     ${coreSarToggle(t)}
     ${t.key === 'modular' ? modularControls(t) : ''}
@@ -248,7 +266,9 @@ function renderBar() {
     label = known ? t.price.label : (result.recommended ? 'Recommended for you' : 'Complete program');
     value = known ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
     valueClass = known ? '' : 'confirm-value';
-    sub = known && t.price.payInFull ? `Pay in full: ${t.price.payInFull.display} · planning estimate` : known ? 'Planning estimate' : 'We’ll confirm your tuition';
+    const m = result.tracks.modular;
+    const modularAlt = t.price.fixed && m.price.amount !== null && m.price.amount !== undefined && m.price.complete !== false ? ` · Only what you need: ${m.price.display}` : '';
+    sub = known && t.price.payInFull ? `Pay in full: ${t.price.payInFull.display}${modularAlt}` : known ? `Planning estimate${modularAlt}` : 'We’ll confirm your tuition';
     draft = Boolean(t.price.draft);
   } else if (state.path) sub = 'Updating…';
   const changed = lastBarValue !== null && lastBarValue !== name + value;
@@ -274,10 +294,16 @@ function withFocus(fn) {
   fn();
   if (id) { const el = document.getElementById(id); if (el && el !== document.activeElement) el.focus(); }
 }
+let lastModularLive = null;
 function renderResult() {
   withFocus(() => {
     const aside = $main.querySelector('.quick-price');
     if (aside) aside.innerHTML = resultPanel();
+    const live = $main.querySelector('[data-testid="modular-live-price"]');
+    if (live) {
+      if (lastModularLive !== null && lastModularLive !== live.textContent) live.classList.add('flash');
+      lastModularLive = live.textContent;
+    }
     const cmp = $main.querySelector('#compare-wrap');
     const wasOpen = Boolean(cmp?.querySelector('#compare')?.open);
     if (cmp) cmp.innerHTML = compareSection(wasOpen);
@@ -405,6 +431,13 @@ $main.addEventListener('change', (ev) => {
 });
 
 $main.addEventListener('click', (ev) => {
+  const open = ev.target.closest('[data-open-compare]');
+  if (open) {
+    ev.preventDefault();
+    const d = $main.querySelector('#compare');
+    if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    return;
+  }
   const t = ev.target.closest('button');
   if (!t) return;
   if (t.dataset.zero) setHours(t.dataset.zero, 0);
