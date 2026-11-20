@@ -185,5 +185,9 @@
         }
       }
     }
+  },
+  "trainingDay": {
+    "hours": 8,
+    "_note": "Used only to describe prior hours as \"about N full days of training\". Confirm the length of an NWIOI training day."
   }
 }

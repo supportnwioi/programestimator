@@ -166,6 +166,20 @@ test('À La Carte coursework: category gaps after prior coursework, at the CEU r
   assert.deepEqual([noWhere.price.display, noWhere.price.complete], ['$2,135', true]);
 });
 
+test('one rough total: hours that may count, training days, and Core’s rough remaining; categories override it', () => {
+  const t = est('sex_therapist', { total: 25 }).prior;
+  assert.deepEqual([t.state, t.basis, t.rough, t.covered, t.days, t.remaining, t.additional.display, t.combined.display], ['known', 'total', true, 25, 3, 26, '$910', '$9,110']);
+  assert.equal(est('sex_therapist', { total: 25 }).tracks.alaCarte.coursework.state, 'unresolved', 'no À La Carte figure from a total alone');
+  const big = est('sex_therapist', { total: 500 }).prior;
+  assert.deepEqual([big.covered, big.remaining], [150, 0], 'capped at the education requirement');
+  assert.equal(est('sex_therapist', { total: 5 }).prior.days, 0, 'no day comparison under one day');
+  const u = est('sex_therapist', { total: 'unsure' }).prior;
+  assert.deepEqual([u.state, u.unsure], ['unresolved', true]);
+  const both = est('sex_therapist', { total: 25, core: 60, skills: 29 });
+  assert.deepEqual([both.prior.basis, both.prior.covered, both.tracks.alaCarte.coursework.remaining], ['categories', 89, 61]);
+  for (const total of [0, 25, 150]) assert.equal(est('sex_therapist', { total }).tracks.core.price.amount, 8200, 'Core tuition fixed');
+});
+
 test('package savings only when both totals cover the same components and quantities', () => {
   const s = PATHS.map((p) => est(p, {}).savings);
   assert.deepEqual([s[0].display, s[0].separately], ['$2,585', '$10,785']);

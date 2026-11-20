@@ -89,11 +89,18 @@ function planText(plans, preview) {
  * prior hours that overlap NWIOI's curriculum count once. Without one, the gap is
  * education benchmark − Core CEUs (e.g. 150 − 99 = 51): a rough planning estimate.
  */
-export function priorCoverage(b, core, ck, sk) {
+export function priorCoverage(b, core, ck, sk, total = { state: 'unanswered' }) {
   const mapping = core.curriculumMapping || null;
   const gap = b.education - core.ceus;
-  const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, rough: !mapping };
+  const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, rough: !mapping, basis: 'categories' };
+  // One self-reported total (no category split): hours that may count overall, and
+  // the arithmetic gap beyond Core. Always a rough planning estimate.
+  if (!(ck.state === 'hours' && sk.state === 'hours') && total.state === 'hours') {
+    const counted = Math.min(gap, total.hours);
+    return { ...base, basis: 'total', rough: true, state: 'known', covered: total.hours, reported: total.hours, counted, overlap: total.hours - counted, remaining: gap - counted, remainingCore: null, remainingSkills: null };
+  }
   if (ck.state !== 'hours' || sk.state !== 'hours') {
+    if (total.state === 'unsure' && ck.state !== 'hours' && sk.state !== 'hours') return { ...base, basis: 'total', state: 'unresolved', knownCore: null, knownSkills: null, unsure: true };
     return { ...base, state: 'unresolved', knownCore: ck.state === 'hours' ? ck.hours : null, knownSkills: sk.state === 'hours' ? sk.hours : null, unsure: [ck, sk].some((a) => a.state === 'unsure') };
   }
   const reported = ck.hours + sk.hours;
@@ -101,10 +108,10 @@ export function priorCoverage(b, core, ck, sk) {
     const coreGap = Math.max(0, b.core - mapping.core - ck.hours);
     const skillsGap = Math.max(0, b.skills - mapping.skills - sk.hours);
     const counted = (b.core - mapping.core - coreGap) + (b.skills - mapping.skills - skillsGap);
-    return { ...base, state: 'known', reported, counted, overlap: reported - counted, remaining: coreGap + skillsGap, remainingCore: coreGap, remainingSkills: skillsGap };
+    return { ...base, state: 'known', covered: reported, reported, counted, overlap: reported - counted, remaining: coreGap + skillsGap, remainingCore: coreGap, remainingSkills: skillsGap };
   }
   const counted = Math.min(gap, reported);
-  return { ...base, state: 'known', reported, counted, overlap: reported - counted, remaining: gap - counted, remainingCore: null, remainingSkills: null };
+  return { ...base, state: 'known', covered: reported, reported, counted, overlap: reported - counted, remaining: gap - counted, remainingCore: null, remainingSkills: null };
 }
 
 /**
@@ -121,6 +128,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const b = benchmarks(ruleset);
   const ck = parseHours(input.core, b.core);
   const sk = parseHours(input.skills, b.skills);
+  const tot = parseHours(input.total, b.education);
   const sup = parseHours(input.supervision, b.supervision);
   const sar = ['yes', 'no', 'unsure'].includes(input.sar) ? input.sar : null;
   const where = ['nwioi', 'outside', 'help'].includes(input.supervisionWhere) ? input.supervisionWhere : null;
@@ -160,8 +168,10 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   };
 
   // ---- Prior training: what may be covered, what NWIOI includes, what may still be needed
-  const cov = priorCoverage(b, c, ck, sk);
-  const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null };
+  const cov = priorCoverage(b, c, ck, sk, tot);
+  const dayHours = catalog.trainingDay?.hours || 8;
+  const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null,
+    days: cov.state === 'known' && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours };
   if (cov.state === 'known') {
     const nwioiCeus = Math.min(qty(input.additional?.nwioiCeus) ?? cov.remaining, cov.remaining);
     const outsideCeus = cov.remaining - nwioiCeus;
@@ -275,7 +285,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   }
 
   // ---- Recommendation: only once the answers support one.
-  const ready = where === 'outside' || (where !== null && answered(ck) && answered(sk) && answered(sup));
+  const ready = where === 'outside' || (where !== null && ((answered(ck) && answered(sk)) || answered(tot)) && answered(sup));
   const reasons = [];
   const priorSupShare = sup.state === 'hours' ? sup.hours / b.supervision : 0;
   const fullSupervisionNeeded = where !== 'outside' && !(priorSupShare >= catalog.recommendation.modularWhenPriorSupervisionShareAtLeast);

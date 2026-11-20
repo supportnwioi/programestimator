@@ -1,26 +1,31 @@
-// Track finder: headline → credential picker → two compact option cards
-// (Core Program · Tier I and À La Carte · Tier II) → the flow the visitor picks,
-// with its personalized result directly beneath the inputs.
+// Track finder, one short flow:
+//   "Build on the training you've already done." → credential → one rough
+//   prior-hours estimate (category breakdown optional) → result right below →
+//   Core Program and À La Carte as two short rows, with the full comparison and
+//   the À La Carte builder behind secondary links.
 // All pricing comes from POST /api/track-estimate (server-side catalog).
 const $main = document.getElementById('finder');
 const $bar = document.getElementById('price-bar');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const PLANNING_COPY = 'This is a planning estimate. We’ll review your prior training and coursework options together and confirm your NWIOI tuition before you enroll.';
-const PRIOR_COPY = 'NWIOI Core includes 99 CEUs, supervision for your credential, and SAR. Graduate coursework and continuing education you’ve already completed may cover some or all of the remaining education. If you need additional courses, you can choose from the NWIOI library or learn with other institutes. We encourage you to learn from a range of educators and perspectives, and we’ll help you find courses that fit the areas you still need.';
-const STORE_KEY = 'nwioi-finder-v4';
+const STORE_KEY = 'nwioi-finder-v5';
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const word = (n) => (n <= 10 ? WORDS[n] : String(n));
 
 let config = null;
 let result = null;
 const freshAla = () => ({ coreCeus: null, skillsCeus: null, sar: null, individualHours: null, groupSessions: null });
 const freshAdditional = () => ({ nwioiCeus: null, outsideCost: null });
-// mode: null (just the option cards) | 'prior' (Core: prior-training calculator) | 'ala' (À La Carte builder)
-const fresh = () => ({ path: null, mode: null, alaStarted: false, core: null, skills: null, supervision: null, sar: null, where: null, additional: freshAdditional(), alaCarte: freshAla() });
+// mode: null | 'ala' (À La Carte builder open)
+const fresh = () => ({ path: null, mode: null, total: null, core: null, skills: null, supervision: null, sar: null, where: null, additional: freshAdditional(), alaCarte: freshAla() });
 let state = fresh();
 
 const deciding = () => state.path === 'deciding';
 const pathCfg = () => config.paths.find((p) => p.path === state.path);
 const known = (p) => p && p.amount !== null && p.amount !== undefined;
+const maxFor = (key) => (key === 'total' ? pathCfg().benchmarks.education : pathCfg().benchmarks[key]);
+const hasCategories = () => state.core !== null || state.skills !== null;
 function load() {
   try {
     const s = JSON.parse(sessionStorage.getItem(STORE_KEY));
@@ -29,7 +34,7 @@ function load() {
 }
 function save() { try { sessionStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* storage unavailable */ } }
 
-// ------------------------------------------------------------------ small helpers
+// ------------------------------------------------------------------ helpers
 function linkHtml(link, label, cls = '', testid = '') {
   const t = testid ? ` data-testid="${testid}"` : '';
   if (!link) return `<span class="${cls} disabled" aria-disabled="true"${t}>${esc(label)} <span class="small">(link coming soon)</span></span>`;
@@ -37,7 +42,7 @@ function linkHtml(link, label, cls = '', testid = '') {
 }
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const openState = {};
-const det = (id, summary, body, testid = '') => `<details id="${id}" class="expand"${openState[id] ? ' open' : ''}${testid ? ` data-testid="${testid}"` : ''}><summary>${summary}</summary>${body}</details>`;
+const det = (id, summary, body, testid = '', cls = 'expand') => `<details id="${id}" class="${cls}"${openState[id] ? ' open' : ''}${testid ? ` data-testid="${testid}"` : ''}><summary>${summary}</summary>${body}</details>`;
 const itemList = (items, testid) => `<ul class="item-list" data-testid="${testid}">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
 const draftChip = (on) => (on ? ' <span class="chip warn">Draft · preview only</span>' : '');
 
@@ -88,89 +93,99 @@ function scholarshipBlock() {
   </details>`;
 }
 
-// ------------------------------------------------------------------ the two option cards (right under the picker)
-function coreOption() {
-  const t = result.tracks.core;
-  const p = t.price;
+// ------------------------------------------------------------------ the prior-training question
+function priorQuestion(p) {
+  const b = p.benchmarks;
+  const ex = config.examples || {};
+  return `
+    ${hoursQuestion('total', 'About how many hours of relevant training have you already completed?',
+      'Enter your best estimate, or choose “I’m not sure”. Count graduate coursework and continuing education related to sexuality.', b.education, 'full education requirement')}
+    ${det('by-category', 'I know my hours by category', `
+      <p class="small muted">For a more detailed estimate. The ${esc(p.pathName)} credential calls for ${b.core} core knowledge hours and ${b.skills} skills training hours, and extra hours in one category don’t count toward the other. When both are filled in, we use these instead of your total.</p>
+      ${hoursQuestion('core', 'Core Knowledge Areas (CKAs)', `Up to ${b.core} hours. ${esc(ex.core || '')}`, b.core, 'core knowledge')}
+      ${hoursQuestion('skills', b.trainingLabel, `Up to ${b.skills} hours. ${esc(ex.skills?.[p.path] || '')}`, b.skills, 'skills training')}
+      <details class="credits">
+        <summary>My coursework is listed in credits</summary>
+        <p class="small">AASECT counts one college or university semester credit as ${b.semesterCreditClockHours} hours (a 3-credit semester course = ${3 * b.semesterCreditClockHours} hours). Continuing education from bodies other than AASECT counts at ${b.nonAasectCeMultiplier === 0.5 ? 'half' : `${b.nonAasectCeMultiplier}×`} value. Quarter credits have no published conversion, so admissions will review those with you.</p>
+        <div class="row">
+          <label class="small" for="credits-in" style="margin:0">Semester credits</label>
+          <input type="number" id="credits-in" min="0" step="0.5" inputmode="decimal" style="max-width:110px">
+          <span class="small" id="credits-out" aria-live="polite"></span>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button type="button" data-add-credits="core">Add to core knowledge</button>
+          <button type="button" data-add-credits="skills">Add to skills training</button>
+        </div>
+        <p class="small muted">Count each course once. If it’s already in your hours above, don’t add it again.</p>
+      </details>`, 'by-category', 'expand categories')}`;
+}
+
+// ------------------------------------------------------------------ the result, right below the question
+function quickResult() {
+  if (!result) return '';
   const pr = result.prior;
-  const rec = result.recommended === 'core';
-  const priceHtml = known(p)
-    ? `<p class="small opt-label">Package tuition</p>
-       <p class="opt-price" data-testid="rec-price">${esc(p.display)}</p>
-       <p class="small opt-sub">${p.payInFull ? `<span data-testid="rec-pif">Pay in full: ${esc(p.payInFull.display)} (save ${p.payInFull.percent}%)</span>` : 'Standard NWIOI tuition'}${draftChip(p.draft)}</p>
-       ${t.paymentPlans?.length ? `<p class="small opt-sub">${t.paymentPlans.map((x) => `or ${esc(x.text)}`).join(' · ')}</p>` : ''}`
-    : `<p class="small opt-label">Package tuition</p><p class="opt-price confirm" data-testid="rec-price">${esc(p.confirmText)}</p>`;
-  const beyond = pr.state === 'known'
-    ? `<p class="small opt-beyond" data-testid="core-beyond">${pr.remaining === 0
-      ? 'Your prior coursework may cover the rest beyond Core’s 99 CEUs.'
-      : `Beyond Core’s 99 CEUs: about <strong>${plural(pr.remaining, 'CEU')}</strong>${pr.additional ? `, ${esc(pr.additional.display)} through NWIOI` : ''}.`} <span class="muted">Planning estimate.</span></p>`
-    : '';
-  return `<article class="opt-card ${rec ? 'is-recommended' : ''}" data-track="core" aria-labelledby="opt-core-h">
-    <h2 id="opt-core-h" class="opt-h"><span class="opt-name">Core Program</span> <span class="tier">Tier I</span></h2>
-    ${rec ? '<span class="chip ok" data-testid="rec-chip">Recommended for you</span>' : ''}
-    ${priceHtml}
-    <p class="opt-key" data-testid="core-key">99 CEUs, supervision, and SAR included</p>
-    ${beyond}
-    ${t.lead ? `<p class="small">${esc(t.lead)}</p>` : ''}
-    <button type="button" class="btn primary opt-btn" data-mode="prior" data-testid="core-action" aria-pressed="${state.mode === 'prior'}">See what my prior training could save</button>
-    ${scholarshipBlock()}
-  </article>`;
-}
+  const core = result.tracks.core;
+  const cw = result.tracks.alaCarte.coursework;
+  const trainingLower = result.benchmarks.trainingLabel.toLowerCase();
+  const review = `<div class="cta">${linkHtml(core.cta.link, core.cta.label, 'btn primary big', 'primary-cta')}</div>`;
 
-// À La Carte card answers: how much coursework do I still need, and what would it cost through NWIOI?
-function alaOption() {
-  const t = result.tracks.alaCarte;
-  const cw = t.coursework;
-  const rec = result.recommended === 'alaCarte';
-  const label = result.benchmarks.trainingLabel.replace(/ Skills Training$/, ' Skills Training');
-  let body;
-  if (cw.state === 'known') {
-    body = `<p class="opt-ceus" data-testid="ala-remaining">${cw.remaining === 0 ? 'No CEUs estimated to remain' : `<strong>${cw.remaining}</strong> estimated CEUs remaining`}</p>
-      ${cw.remaining > 0 ? `<p class="small opt-sub" data-testid="ala-split">${cw.remainingCore} Core Knowledge · ${cw.remainingSkills} ${esc(label)}</p>` : ''}
-      <p class="small opt-label">Estimated coursework cost</p>
-      <p class="opt-price" data-testid="ala-coursework-cost">${cw.cost ? esc(cw.cost.display) : 'Confirm with admissions'}</p>
-      <p class="small opt-sub">${cw.cost ? 'estimated for coursework through NWIOI · ' : ''}Planning estimate${draftChip(cw.cost?.draft)}</p>
-      <p class="small">Have graduate coursework or continuing education that might count? Add your best estimate to see what you may still need.</p>
-      <button type="button" class="btn primary opt-btn" data-mode="prior" data-testid="ala-prior-action">Add or update my prior coursework</button>`;
-  } else {
-    const known1 = cw.remainingCore !== null || cw.remainingSkills !== null;
-    body = `<p class="opt-price opt-price-text" data-testid="ala-remaining">Estimate what you still need</p>
-      <p class="small opt-sub">${cw.unsure ? 'Some of your coursework still needs review. Add your best estimate, or review it with admissions.' : known1 ? 'Answer both coursework questions to see your estimate.' : 'Add your prior coursework to see how many CEUs may remain and what they’d cost through NWIOI.'}</p>
-      <p class="opt-key">Choose individual courses, supervision, or SAR.</p>
-      <button type="button" class="btn primary opt-btn" data-mode="prior" data-testid="ala-prior-action">Add prior coursework</button>`;
+  if (pr.state === 'unresolved') {
+    if (pr.unsure) {
+      return `<div class="quick-result" data-testid="quick-result">
+        <p class="result-h" data-testid="result-h">Not sure? That’s common.</p>
+        <p>We’ll go through your coursework with you, show what may count toward your credential, and help you plan what’s left.</p>
+        ${review}</div>`;
+    }
+    if (pr.knownCore !== null || pr.knownSkills !== null) {
+      return `<div class="quick-result" data-testid="quick-result"><p class="small muted">Add both category hours for a detailed estimate, or use the total above.</p></div>`;
+    }
+    return '';
   }
-  return `<article class="opt-card ${rec ? 'is-recommended' : ''}" data-track="alaCarte" aria-labelledby="opt-ala-h">
-    <h2 id="opt-ala-h" class="opt-h"><span class="opt-name">À La Carte</span> <span class="tier">Tier II</span></h2>
-    ${rec ? '<span class="chip ok">Recommended for you</span>' : ''}
-    ${body}
-    <p class="small muted opt-addons">Supervision and SAR can be added separately. <button type="button" class="link" data-mode="ala" data-testid="ala-action" aria-pressed="${state.mode === 'ala'}">Build my estimate</button></p>
-  </article>`;
+
+  const covered = pr.covered;
+  const head = covered > 0
+    ? `<p class="result-h" data-testid="result-h">You may already have ${plural(covered, 'hour')} covered.</p>
+       <p data-testid="result-body">${pr.days > 0 ? `That’s about ${word(pr.days)} full day${pr.days === 1 ? '' : 's'} of training you may be able to put toward your credential. ` : ''}We’ll review your coursework with you and help you plan what’s left.</p>`
+    : `<p class="result-h" data-testid="result-h">You’re starting fresh.</p>
+       <p data-testid="result-body">Core Program includes 99 CEUs, supervision, and SAR. We’ll help you plan the rest of the education requirement.</p>`;
+  const basis = pr.basis === 'total'
+    ? '<p class="small muted" data-testid="basis">Based on your self-reported total.</p>'
+    : `<p class="small muted" data-testid="basis">Based on your core knowledge and ${esc(trainingLower)} hours.</p>`;
+
+  const lines = [];
+  if (pr.remaining === 0) lines.push(`<li data-testid="core-line"><strong>Core Program:</strong> your prior training may cover the rest of the education requirement beyond its 99 CEUs.</li>`);
+  else lines.push(`<li data-testid="core-line"><strong>Core Program:</strong> about ${plural(pr.remaining, 'more CEU')} beyond the 99 included${pr.mappingKnown ? ` (${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})` : ''}${pr.additional ? `, about ${esc(pr.additional.display)} through NWIOI` : ''}.${pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : ''}</li>`);
+  if (cw.state === 'known') lines.push(`<li data-testid="ala-line"><strong>À La Carte:</strong> about ${plural(cw.remaining, 'CEU')} remaining (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `, about ${esc(cw.cost.display)} for coursework through NWIOI` : ''}.</li>`);
+  else if (pr.basis === 'total') lines.push('<li data-testid="ala-line"><strong>À La Carte:</strong> <button type="button" class="link" data-open-categories>Add your hours by category</button> to estimate what you may still need.</li>');
+
+  const plan = pr.remaining > 0 ? det('plan-remaining', 'Plan your remaining coursework', `
+      <div class="grid2 additional">
+        <div class="field"><label for="add-nwioi">CEUs you’d take with NWIOI</label>
+          <input type="number" id="add-nwioi" data-add="nwioiCeus" min="0" max="${pr.remaining}" step="1" inputmode="numeric" value="${pr.nwioiAdditionalCeus}">
+          <span class="small muted">${esc(pr.libraryNote || '')}</span></div>
+        ${pr.outsideCeus > 0 ? `<div class="field"><label for="add-outside">Expected cost of your other ${plural(pr.outsideCeus, 'CEU')} (optional)</label>
+          <input type="number" id="add-outside" data-add="outsideCost" min="0" step="1" inputmode="decimal" value="${pr.outsideCost ?? ''}" placeholder="$">
+          <span class="small muted">Other providers set their own prices.</span></div>` : ''}
+      </div>
+      <table class="math combined-table" data-testid="combined-table"><tbody>
+        <tr><td>NWIOI tuition · Core Program</td><td class="amt">${esc(core.price.display || '—')}</td></tr>
+        ${pr.nwioiAdditionalCeus > 0 ? `<tr><td>Additional NWIOI coursework · ${plural(pr.nwioiAdditionalCeus, 'CEU')}</td><td class="amt" data-testid="additional-cost">${esc(pr.additional?.display || 'Confirm with admissions')}</td></tr>` : ''}
+        ${pr.outsideCeus > 0 ? `<tr><td>Coursework with other institutes · ${plural(pr.outsideCeus, 'CEU')}</td><td class="amt">${pr.outsideCost !== null ? esc('$' + Math.round(pr.outsideCost).toLocaleString('en-US')) : '<span class="muted">Not included</span>'}</td></tr>` : ''}
+        ${pr.combined ? `<tr class="total"><td>Estimated combined cost${pr.combined.complete ? '' : ' <span class="small muted">(without other institutes)</span>'}</td><td class="amt" data-testid="combined-cost">${esc(pr.combined.display)}</td></tr>` : ''}
+      </tbody></table>
+      ${pr.combined ? `<p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>` : ''}`, 'plan-remaining') : '';
+
+  return `<div class="quick-result" data-testid="quick-result">
+    ${head}
+    ${basis}
+    <ul class="small result-lines" data-testid="result-lines">${lines.join('')}</ul>
+    <p class="small muted">Planning estimates. Admissions reviews the topics and live hours of your prior training to confirm what counts.</p>
+    ${review}
+    ${plan}
+  </div>`;
 }
 
-function compareDetails() {
-  const core = result.tracks.core, ala = result.tracks.alaCarte, s = result.savings;
-  const supervision = core.included.find((x) => x.startsWith('Supervision')) || 'Included';
-  const rows = [
-    ['Education', '99 CEUs of NWIOI coursework', 'The courses you choose'],
-    ['Supervision', esc(supervision.replace(/^Supervision: /, '')), 'NWIOI hours and group sessions as you need them, or an outside supervisor (paid separately)'],
-    ['SAR', 'Included', 'Add if you need one'],
-    ['Price', `Package tuition${known(core.price) ? `: ${esc(core.price.display)}` : ''}`, 'One estimate for what you buy'],
-    ['Pay in full', core.price.payInFull ? `Save ${core.price.payInFull.percent}%: ${esc(core.price.payInFull.display)}` : 'Ask admissions', 'Not available'],
-    ['Good fit if', 'You want a complete, guided path with supervision', 'You’ve completed much of your training or have your own supervisor'],
-  ];
-  return `<details id="compare" class="compare"${openState.compare ? ' open' : ''}>
-    <summary><span id="compare-h">Compare full details</span></summary>
-    <div class="table-wrap"><table class="compare-table" data-testid="compare-table">
-      <thead><tr><th scope="col"><span class="sr-only">Detail</span></th><th scope="col">Core Program <span class="tier">Tier I</span></th><th scope="col">À La Carte <span class="tier">Tier II</span></th></tr></thead>
-      <tbody>${rows.map(([h, a, b]) => `<tr><th scope="row">${h}</th><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody>
-    </table></div>
-    ${s ? `<p class="small savings" data-testid="savings"><strong>Core saves ${esc(s.display)}</strong> compared with buying the same items separately (${esc(s.separately)}).</p>
-      ${det('savings-items', 'Same items compared', itemList(s.items, 'savings-items'), 'savings-included')}` : ''}
-    <p class="small muted">${esc(core.name)} also includes: ${core.included.filter((x) => !/^(99 CEUs|Supervision|SAR)/.test(x)).map(esc).join(' · ')}.</p>
-    ${core.extraLinks?.length ? `<p class="small">${core.extraLinks.map((x) => linkHtml(x.link, x.label, 'small')).join(' · ')}</p>` : ''}
-  </details>`;
-}
-
+// ------------------------------------------------------------------ the two options, as short rows
 function optionsSection() {
   if (!state.path) return '';
   if (deciding()) {
@@ -178,115 +193,73 @@ function optionsSection() {
       <h2>Not sure which credential fits?</h2>
       <p>Sex therapist, sexuality counselor and sexuality educator credentials have different training and supervision requirements. In a free admissions call, we’ll talk about your background and goals, explain how each credential works, and help you choose a direction.</p>
       <div class="cta">${linkHtml(config.links.scheduling, 'Talk through my options', 'btn primary big', 'primary-cta')}</div>
-      <p class="small muted">NWIOI provides training. AASECT makes certification decisions.</p>
     </section>`;
   }
   if (!result) return '<p class="muted" aria-live="polite">Loading tuition…</p>';
-  return `<p class="small muted options-for">Your options for the <strong>${esc(result.pathName)}</strong> credential</p>
-    <div class="opt-grid" data-testid="options">${coreOption()}${alaOption()}</div>
-    ${compareDetails()}`;
-}
-
-// ------------------------------------------------------------------ Core: prior-training calculator
-function priorFlow(p) {
-  const b = p.benchmarks;
-  const ex = config.examples || {};
-  return `
-  <section class="card flow" id="prior-flow" aria-labelledby="prior-h">
-    <h2 id="prior-h">See what your prior training could save</h2>
-    <p class="small muted">Rough estimates are fine. The ${esc(p.pathName)} credential calls for ${b.core} core knowledge hours and ${b.skills} skills training hours, and extra hours in one category don’t count toward the other.</p>
-    ${hoursQuestion('core', 'Core Knowledge Areas (CKAs)', `Up to ${b.core} hours. ${esc(ex.core || '')}`, b.core, 'core knowledge')}
-    ${hoursQuestion('skills', b.trainingLabel, `Up to ${b.skills} hours. ${esc(ex.skills?.[p.path] || '')}`, b.skills, 'skills training')}
-    <details class="credits">
-      <summary>My coursework is listed in credits</summary>
-      <p class="small">AASECT counts one college or university semester credit as ${b.semesterCreditClockHours} hours (a 3-credit semester course = ${3 * b.semesterCreditClockHours} hours). Continuing education from bodies other than AASECT counts at ${b.nonAasectCeMultiplier === 0.5 ? 'half' : `${b.nonAasectCeMultiplier}×`} value. Quarter credits have no published conversion, so admissions will review those with you.</p>
-      <div class="row">
-        <label class="small" for="credits-in" style="margin:0">Semester credits</label>
-        <input type="number" id="credits-in" min="0" step="0.5" inputmode="decimal" style="max-width:110px">
-        <span class="small" id="credits-out" aria-live="polite"></span>
+  const core = result.tracks.core, ala = result.tracks.alaCarte, cw = ala.coursework;
+  const p = core.price;
+  const rec = (k) => (result.recommended === k ? ' <span class="chip ok" data-testid="rec-chip">Recommended for you</span>' : '');
+  const corePrice = known(p)
+    ? `<span class="opt-label">Package tuition</span><strong class="row-amt" data-testid="rec-price">${esc(p.display)}</strong>
+       ${p.payInFull ? `<span class="small" data-testid="rec-pif">Pay in full: ${esc(p.payInFull.display)} (save ${p.payInFull.percent}%)</span>` : ''}
+       ${core.paymentPlans?.length ? `<span class="small">${core.paymentPlans.map((x) => `or ${esc(x.text)}`).join(' · ')}</span>` : ''}${draftChip(p.draft)}`
+    : `<span class="opt-label">Package tuition</span><strong class="row-amt confirm" data-testid="rec-price">${esc(p.confirmText)}</strong>`;
+  const alaPrice = cw.state === 'known'
+    ? `<span class="opt-label">Estimated coursework cost</span><strong class="row-amt" data-testid="ala-coursework-cost">${cw.cost ? esc(cw.cost.display) : 'Ask admissions'}</strong>
+       <span class="small" data-testid="ala-remaining">${plural(cw.remaining, 'CEU')} remaining · planning estimate</span>${draftChip(cw.cost?.draft)}`
+    : '<span class="opt-label">Price</span><strong class="row-amt row-amt-text">Based on what you choose</strong>';
+  return `<section class="card rows" data-testid="options" aria-labelledby="rows-h">
+    <h2 id="rows-h" class="rows-h">Two ways to train with NWIOI</h2>
+    <p class="small muted">Prior coursework may reduce the additional training you need to take or buy.</p>
+    <div class="opt-row" data-track="core">
+      <div class="row-main">
+        <h3 id="opt-core-h" class="opt-h"><span class="opt-name">Core Program</span> <span class="tier">Tier I</span>${rec('core')}</h3>
+        <p class="small" data-testid="core-key">99 CEUs, supervision, and SAR included</p>
+        ${core.lead ? `<p class="small muted">${esc(core.lead)}</p>` : ''}
       </div>
-      <div class="row" style="margin-top:6px">
-        <button type="button" data-add-credits="core">Add to core knowledge</button>
-        <button type="button" data-add-credits="skills">Add to skills training</button>
+      <div class="row-price">${corePrice}</div>
+    </div>
+    <div class="opt-row" data-track="alaCarte">
+      <div class="row-main">
+        <h3 id="opt-ala-h" class="opt-h"><span class="opt-name">À La Carte</span> <span class="tier">Tier II</span>${rec('alaCarte')}</h3>
+        <p class="small">Choose individual courses or supervision.</p>
       </div>
-      <p class="small muted">Count each course once. If it’s already in your hours above, don’t add it again.</p>
-    </details>
-    <div id="prior-result" class="result-box" aria-live="polite">${result ? priorResult() : ''}</div>
-    <div class="prior-copy" data-testid="prior-copy"><h3 class="small-h">See how far your prior training can take you</h3><p class="small">${esc(PRIOR_COPY)}</p></div>
+      <div class="row-price">${alaPrice}</div>
+    </div>
+    ${scholarshipBlock()}
+    <div class="row-links small">
+      ${compareDetails()}
+      <button type="button" class="link" data-mode="ala" data-testid="ala-action" aria-pressed="${state.mode === 'ala'}">Build an À La Carte estimate</button>
+      ${linkHtml(core.secondary.link, core.secondary.label, 'small', 'library-link')}
+    </div>
+    <p class="small muted" data-testid="library-note">${esc(result.prior.libraryNote || '')}</p>
   </section>`;
 }
 
-function priorResult() {
-  const pr = result.prior;
-  const b = result.benchmarks;
-  const core = result.tracks.core;
-  const trainingLower = b.trainingLabel.toLowerCase();
-  const roughChip = pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : '';
-  const cta = `<div class="cta">${linkHtml(core.cta.link, core.cta.label, 'btn primary big', 'primary-cta')} ${linkHtml(core.secondary.link, core.secondary.label, 'btn', 'secondary-cta')}</div>
-    <p class="small muted" data-testid="library-note">${esc(pr.libraryNote || '')}</p>
-    ${core.enroll ? `<p class="small">${linkHtml(core.enroll, 'Ready to enroll? Start your Core enrollment', 'small', 'enroll')}</p>` : ''}`;
-  const review = '<p class="small muted">Admissions reviews the topics and live hours of your prior training to confirm what counts.</p>';
-
-  if (pr.state === 'unresolved') {
-    const parts = [];
-    if (pr.knownCore !== null) parts.push(`${pr.knownCore} core knowledge hours`);
-    if (pr.knownSkills !== null) parts.push(`${pr.knownSkills} ${trainingLower} hours`);
-    if (!parts.length && !pr.unsure) return '<p class="muted" data-testid="prior-empty">Enter your hours above to see what your prior training could save.</p>';
-    return `<div data-testid="prior-summary">
-      <p>${parts.length ? `You’ve told us about ${esc(parts.join(' and '))}.` : ''} ${pr.unsure ? 'Some of your training still needs review, and we’ll go through it with you.' : 'Answer both questions to see your estimate.'}</p>
-      <p data-testid="prior-need">Still to be reviewed.${pr.rough ? ` Core covers ${pr.nwioiCeus} of the ${b.education} education hours, so up to ${pr.gapBeforePrior} more may be needed if none of your prior training counts.` : ''}</p>
-      ${review}${cta}</div>`;
-  }
-
-  const lead = pr.priorSavings
-    ? `<p class="save-lead" data-testid="save-lead">Your prior training could save you about <strong>${esc(pr.priorSavings.display)}</strong> in additional coursework.</p>`
-    : pr.counted > 0 ? `<p class="save-lead" data-testid="save-lead">About ${plural(pr.counted, 'hour')} of your prior training may count.</p>` : '<p class="save-lead" data-testid="save-lead">You may need the full remaining coursework beyond Core.</p>';
-  const overlap = pr.overlap > 0
-    ? `<p class="small muted" data-testid="prior-overlap">${plural(pr.overlap, 'hour')} you reported overlap${pr.overlap === 1 ? 's' : ''} with what Core already covers or go${pr.overlap === 1 ? 'es' : ''} beyond the requirement, so ${pr.overlap === 1 ? 'it isn’t' : 'they aren’t'} counted twice.</p>` : '';
-  const split = pr.mappingKnown && pr.remaining > 0 ? ` <span class="small">(${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})</span>` : '';
-  const need = pr.remaining === 0
-    ? '<p class="remaining" data-testid="prior-need">Your prior training may cover the rest of the education requirement. No additional coursework estimated.</p>'
-    : `<p class="remaining" data-testid="prior-need">About <strong>${plural(pr.remaining, 'CEU')}</strong> remaining beyond Core’s 99${split}${roughChip}</p>`;
-
-  let cost = '';
-  if (pr.remaining > 0) {
-    cost = `
-      <div class="grid2 additional">
-        <div class="field"><label for="add-nwioi">CEUs you’d take with NWIOI</label>
-          <input type="number" id="add-nwioi" data-add="nwioiCeus" min="0" max="${pr.remaining}" step="1" inputmode="numeric" value="${pr.nwioiAdditionalCeus}"></div>
-        ${pr.outsideCeus > 0 ? `<div class="field"><label for="add-outside">Expected cost of your other ${plural(pr.outsideCeus, 'CEU')} (optional)</label>
-          <input type="number" id="add-outside" data-add="outsideCost" min="0" step="1" inputmode="decimal" value="${pr.outsideCost ?? ''}" placeholder="$">
-          <span class="small muted">Other providers set their own prices.</span></div>` : ''}
-      </div>`;
-  }
-  const table = `<table class="math combined-table" data-testid="combined-table"><tbody>
-      <tr><td>NWIOI tuition · Core Program</td><td class="amt">${esc(core.price.display || '—')}</td></tr>
-      ${pr.nwioiAdditionalCeus > 0 ? `<tr><td>Additional NWIOI coursework · ${plural(pr.nwioiAdditionalCeus, 'CEU')}</td><td class="amt" data-testid="additional-cost">${esc(pr.additional?.display || 'Confirm with admissions')}</td></tr>` : ''}
-      ${pr.outsideCeus > 0 ? `<tr><td>Coursework with other institutes · ${plural(pr.outsideCeus, 'CEU')}</td><td class="amt">${pr.outsideCost !== null ? esc('$' + Math.round(pr.outsideCost).toLocaleString('en-US')) : '<span class="muted">Not included</span>'}</td></tr>` : ''}
-      ${pr.combined ? `<tr class="total"><td>Estimated combined cost${pr.combined.complete ? '' : ' <span class="small muted">(without other institutes)</span>'}</td><td class="amt" data-testid="combined-cost">${esc(pr.combined.display)}</td></tr>` : ''}
-    </tbody></table>`;
-
-  const cw = result.tracks.alaCarte.coursework;
-  const alaLine = cw.state === 'known'
-    ? `<p class="small ala-line" data-testid="ala-line"><strong>With À La Carte instead:</strong> about ${plural(cw.remaining, 'CEU')} remaining (${cw.remainingCore} Core Knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `, an estimated ${esc(cw.cost.display)} for coursework through NWIOI` : ''}. Planning estimate.</p>` : '';
-  return `<div data-testid="prior-summary">
-    ${lead}
-    ${need}
-    ${cost}
-    ${table}
-    ${pr.combined ? `<p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>` : ''}
-    ${alaLine}
-    ${cta}
-    ${det('prior-breakdown', 'How we worked this out', `<ol class="steps small">
-      <li><strong>What you may already have covered:</strong> about ${plural(pr.counted, 'hour')} of your prior training may count toward the rest of the education requirement.</li>
-      <li><strong>What NWIOI includes:</strong> <span data-testid="prior-includes">${pr.nwioiCeus} CEUs of NWIOI coursework, plus supervision and SAR.</span></li>
-      <li><strong>What you may still need:</strong> ${pr.remaining === 0 ? 'nothing more is estimated.' : `about ${plural(pr.remaining, 'CEU')}.`}</li>
-    </ol>${review}`, 'prior-how')}
-    ${overlap}
-  </div>`;
+function compareDetails() {
+  const core = result.tracks.core, s = result.savings;
+  const supervision = core.included.find((x) => x.startsWith('Supervision')) || 'Included';
+  const rows = [
+    ['Education', '99 CEUs of NWIOI coursework', 'The courses you choose'],
+    ['Supervision', esc(supervision.replace(/^Supervision: /, '')), 'NWIOI hours and group sessions as you need them, or an outside supervisor (paid separately)'],
+    ['SAR', 'Included', 'Add if you need one'],
+    ['Price', `Package tuition${known(core.price) ? `: ${esc(core.price.display)}` : ''}`, 'Based on what you choose'],
+    ['Pay in full', core.price.payInFull ? `Save ${core.price.payInFull.percent}%: ${esc(core.price.payInFull.display)}` : 'Ask admissions', 'Not available'],
+    ['Good fit if', 'You want a complete, guided path with supervision', 'You’ve completed much of your training or have your own supervisor'],
+  ];
+  return det('compare', '<span id="compare-h">Compare full details</span>', `
+    <div class="table-wrap"><table class="compare-table" data-testid="compare-table">
+      <thead><tr><th scope="col"><span class="sr-only">Detail</span></th><th scope="col">Core Program <span class="tier">Tier I</span></th><th scope="col">À La Carte <span class="tier">Tier II</span></th></tr></thead>
+      <tbody>${rows.map(([h, a, b]) => `<tr><th scope="row">${h}</th><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody>
+    </table></div>
+    ${s ? `<p class="small savings" data-testid="savings">Core costs ${esc(s.display)} less than buying the same items separately (${esc(s.separately)}).</p>
+      ${det('savings-items', 'Same items compared', itemList(s.items, 'savings-items'), 'savings-included')}` : ''}
+    <p class="small muted">Core Program also includes: ${core.included.filter((x) => !/^(99 CEUs|Supervision|SAR)/.test(x)).map(esc).join(' · ')}.</p>
+    ${core.extraLinks?.length ? `<p class="small">${core.extraLinks.map((x) => linkHtml(x.link, x.label, 'small')).join(' · ')}</p>` : ''}
+    ${core.enroll ? `<p class="small">${linkHtml(core.enroll, 'Ready to enroll? Start your Core enrollment', 'small', 'enroll')}</p>` : ''}`, '', 'compare');
 }
 
-// ------------------------------------------------------------------ À La Carte builder
+// ------------------------------------------------------------------ À La Carte builder (behind a link)
 function alaFlow(p) {
   const b = p.benchmarks;
   return `
@@ -299,6 +272,7 @@ function alaFlow(p) {
     ${state.where === 'outside' ? '<p class="small muted">You’ll pay your outside supervisor separately.</p>' : hoursQuestion('supervision', 'Supervision completed toward this credential', `Up to ${b.supervision} hours with an ${esc(p.terms.supervisorTitle)}.`, b.supervision, 'standard target')}
     ${radioGroup('sar', 'Have you completed a Sexuality Attitude Reassessment (SAR)?', [['yes', 'Yes'], ['no', 'No'], ['unsure', 'I’m not sure']], state.sar)}
     <div id="ala-result" class="result-box" aria-live="polite">${result ? alaResult() : ''}</div>
+    <p class="small"><button type="button" class="link" data-mode="">Close the builder</button></p>
   </section>`;
 }
 
@@ -311,7 +285,7 @@ function alaCourses() {
       <span class="small muted">${hint}</span></div>`;
   return `<h3 class="small-h">Coursework</h3>
     ${cw.state === 'known' ? `<p class="small" data-testid="ala-courses-estimate">You may still need about <strong>${plural(cw.remaining, 'CEU')}</strong>${cw.cost ? ` (${esc(cw.cost.display)} estimated through NWIOI)` : ''}. Planning estimate.</p>`
-      : `<p class="small muted">Add your prior coursework to see what you may still need. <button type="button" class="link" data-mode="prior">Add prior coursework</button></p>`}
+      : '<p class="small muted">Add your hours by category above to see what you may still need.</p>'}
     <div class="grid2">
       ${num('ala-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, eduHint(sug.coreCeus))}
       ${num('ala-skills', 'skillsCeus', `${u.trainingLabel} CEUs`, result.benchmarks.skills, eduHint(sug.skillsCeus))}
@@ -325,7 +299,6 @@ function alaResult() {
       <input type="number" id="${id}" data-ala="${key}" min="0" step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
       <span class="small muted">${hint}</span></div>`;
   const p = t.price;
-  const totalLabel = t.fewerThanNeeded ? 'Your selected items' : 'Estimated cost with NWIOI';
   return `
     ${t.outsideSupervision ? '' : `<div class="grid2">
       ${num('ala-ind', 'individualHours', 'Hours of individual supervision (optional)', 'One-to-one with an NWIOI supervisor')}
@@ -333,7 +306,7 @@ function alaResult() {
     </div>`}
     ${t.sarOffer ? `<label class="small sar-offer" style="font-weight:400"><input type="checkbox" data-ala="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)} (optional)</label>` : ''}
     <div class="ala-total">
-      <span class="small" data-testid="ala-total-label">${totalLabel}</span>
+      <span class="small" data-testid="ala-total-label">${t.fewerThanNeeded ? 'Your selected items' : 'Estimated cost with NWIOI'}</span>
       <strong data-testid="price-alaCarte">${esc(known(p) ? p.display : p.confirmText)}${known(p) && p.complete === false ? ' <span class="small muted">so far</span>' : ''}</strong>
       ${p.draft ? '<span class="chip warn">Draft pricing · preview only</span>' : ''}
     </div>
@@ -341,29 +314,23 @@ function alaResult() {
     ${t.basedOn ? `<p class="small muted" data-testid="based-on">${esc(t.basedOn)}</p>` : ''}
     ${t.items.length ? det('ala-included', 'See what’s included', itemList(t.items, 'ala-items'), 'ala-included') : ''}
     ${t.notes?.length ? `<ul class="small notes" data-testid="ala-notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-    ${result.recommended === 'alaCarte' ? `<p class="small" data-testid="reasons">${result.reasons.map(esc).join(' ')}</p>` : ''}
-    <p class="planning small">${esc(PLANNING_COPY)}</p>
-    <div class="cta">${linkHtml(t.cta.link, t.cta.label, 'btn primary', 'cta-alaCarte')} ${linkHtml(t.secondary.link, t.secondary.label, 'btn', 'ala-book')}</div>
-    <p class="small muted">${esc(result.prior.libraryNote || '')}</p>`;
+    <p class="planning small">${esc(PLANNING_COPY)}</p>`;
 }
 
 function flowSection() {
-  if (!state.path || deciding() || !state.mode) return '';
-  const p = pathCfg();
-  const other = state.mode === 'prior'
-    ? '<p class="small switch">Want to pick and choose instead? <button type="button" class="link" data-mode="ala">Build an À La Carte estimate</button></p>'
-    : '<p class="small switch">Prefer a complete program? <button type="button" class="link" data-mode="prior">See what your prior training could save with Core</button></p>';
-  return (state.mode === 'prior' ? priorFlow(p) : alaFlow(p)) + other;
+  if (!state.path || deciding() || state.mode !== 'ala') return '';
+  return alaFlow(pathCfg());
 }
 
 // ------------------------------------------------------------------ live estimate bar
-// Appears only once the option cards (which already show the price) scroll out of view.
+// Hidden near the top; slides in once the option rows (which show the price) scroll away,
+// and hides again only when they're back in view (no flicker on small scrolls).
 let lastBarValue = null;
-let cardsVisible = true;
+let rowsVisible = true;
 function renderBar() {
   const active = state.path && !deciding() && result;
-  $bar.classList.toggle('is-shown', Boolean(active) && !cardsVisible);
-  $bar.setAttribute('aria-hidden', String(!(active && !cardsVisible)));
+  $bar.classList.toggle('is-shown', Boolean(active) && !rowsVisible);
+  $bar.setAttribute('aria-hidden', String(!(active && !rowsVisible)));
   if (!active) { $bar.innerHTML = ''; lastBarValue = null; return; }
   const ala = result.tracks.alaCarte, core = result.tracks.core;
   const useAla = state.mode === 'ala';
@@ -372,8 +339,7 @@ function renderBar() {
   const value = known(t.price) ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
   const parts = [];
   if (!useAla && core.price.payInFull) parts.push(`Pay in full: ${core.price.payInFull.display}`);
-  const comb = result.prior?.combined;
-  if (!useAla && comb && result.prior.remaining > 0) parts.push(`Estimated combined cost: ${comb.display}${comb.complete ? '' : '+'}`);
+  if (!useAla && result.prior.state === 'known' && result.prior.covered > 0) parts.push(`${result.prior.covered} prior hours may count`);
   if (useAla && !known(ala.price)) parts.push('Your estimate updates as you choose');
   const sub = parts.join(' · ') || 'Planning estimate';
   const name = useAla ? 'À La Carte' : 'Core Program';
@@ -393,26 +359,24 @@ function renderBar() {
   }
 }
 
-// Show the bar once the option cards' price has scrolled away; hide it again only
-// when the cards are back in view below where the bar sits (hysteresis, so small
-// scrolls near the cards don't make it flicker on and off).
 let ticking = false;
 function updateBarVisibility() {
   ticking = false;
-  const grid = $main.querySelector('.opt-grid');
-  let next = cardsVisible;
-  if (!grid) next = true;
+  const rows = $main.querySelector('.rows');
+  let next = rowsVisible;
+  if (!rows) next = true;
   else {
-    const r = grid.getBoundingClientRect();
+    const r = rows.getBoundingClientRect();
     const barH = $bar.offsetHeight || 90;
-    if (cardsVisible && r.bottom < barH + 20) next = false; // cards have scrolled up behind where the bar sits
-    else if (!cardsVisible && r.top > barH) next = true; // cards fully back in view
+    if (rowsVisible && r.bottom < barH + 20) next = false;
+    else if (!rowsVisible && r.top > barH) next = true;
   }
-  if (next !== cardsVisible) { cardsVisible = next; renderBar(); }
+  if (next !== rowsVisible) { rowsVisible = next; renderBar(); }
 }
-function watchCards() {
-  const grid = $main.querySelector('.opt-grid');
-  if (grid) { const r = grid.getBoundingClientRect(); if (r.bottom < ($bar.offsetHeight || 90) + 20) cardsVisible = false; else if (r.top > ($bar.offsetHeight || 90)) cardsVisible = true; }
+function watchRows() {
+  const rows = $main.querySelector('.rows');
+  if (!rows) rowsVisible = true;
+  else { const r = rows.getBoundingClientRect(); if (r.bottom < ($bar.offsetHeight || 90) + 20) rowsVisible = false; else if (r.top > ($bar.offsetHeight || 90)) rowsVisible = true; }
   renderBar();
 }
 const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(updateBarVisibility); } };
@@ -435,34 +399,37 @@ function flashChanged(selector) {
 
 function renderResult() {
   withFocus(() => {
+    const q = $main.querySelector('#quick-result-wrap');
+    if (q) q.innerHTML = quickResult();
     const opts = $main.querySelector('#options');
-    if (opts) { opts.innerHTML = optionsSection(); }
-    const pr = $main.querySelector('#prior-result');
-    if (pr && result) pr.innerHTML = priorResult();
+    if (opts) opts.innerHTML = optionsSection();
     const ac = $main.querySelector('#ala-courses');
     if (ac && result) ac.innerHTML = alaCourses();
     const ar = $main.querySelector('#ala-result');
     if (ar && result) ar.innerHTML = alaResult();
-    for (const sel of ['[data-testid="combined-cost"]', '[data-testid="save-lead"] strong', '[data-testid="price-alaCarte"]', '[data-testid="ala-coursework-cost"]']) flashChanged(sel);
+    for (const sel of ['[data-testid="result-h"]', '[data-testid="combined-cost"]', '[data-testid="price-alaCarte"]', '[data-testid="ala-coursework-cost"]']) flashChanged(sel);
   });
-  watchCards();
+  watchRows();
 }
 
 function render() {
+  const p = state.path && !deciding() ? pathCfg() : null;
   $main.innerHTML = `
   <section class="intro hero">
-    <h1>See what your prior training could save you.</h1>
-    <p class="lede">Graduate coursework and continuing education you’ve already completed may count toward your AASECT credential.</p>
+    <h1>Build on the training you’ve already done.</h1>
+    <p class="lede">Graduate coursework and continuing education you’ve already completed may count toward your AASECT credential. See what may already be covered and what you might still need.</p>
     ${config.preview ? '<p class="notice warn small">Preview mode: draft prices and placeholder links are visible and labeled. The public sees only approved offers.</p>' : ''}
   </section>
-  <section class="card picker">
-    ${radioGroup('path', 'Which credential are you working toward?', [...config.paths.filter((x) => x.enabled).map((x) => [x.path, x.pathName]), ['deciding', 'I’m still deciding']], state.path)}
+  <section class="card start">
+    <div class="picker">${radioGroup('path', 'Which credential are you working toward?', [...config.paths.filter((x) => x.enabled).map((x) => [x.path, x.pathName]), ['deciding', 'I’m still deciding']], state.path)}</div>
+    ${p ? `<div class="prior-q" id="prior-q">${priorQuestion(p)}</div>` : ''}
+    ${p ? `<div id="quick-result-wrap" aria-live="polite">${quickResult()}</div>` : ''}
   </section>
   <div id="options">${optionsSection()}</div>
   <div id="flow">${flowSection()}</div>
   <p class="small muted footnote">NWIOI provides training. AASECT makes certification decisions.</p>`;
   $main.setAttribute('aria-busy', 'false');
-  watchCards();
+  watchRows();
 }
 
 function syncQuestion(key) {
@@ -495,7 +462,7 @@ function requestEstimate(immediate = false) {
     try {
       const res = await fetch('/api/track-estimate', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ path: state.path, core: state.core, skills: state.skills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, additional: state.additional, alaCarte: state.alaCarte }),
+        body: JSON.stringify({ path: state.path, total: state.total, core: state.core, skills: state.skills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, additional: state.additional, alaCarte: state.alaCarte }),
       });
       const body = await res.json();
       if (mine !== seq) return;
@@ -511,18 +478,20 @@ function requestEstimate(immediate = false) {
 }
 
 function setHours(key, value) {
-  const max = pathCfg().benchmarks[key];
+  const max = maxFor(key);
   if (value === 'unsure' || value === null) state[key] = value;
   else state[key] = Math.max(0, Math.min(max, Math.round(Number(value))));
-  if (key === 'core' || key === 'skills') { state.additional = freshAdditional(); state.alaCarte[key === 'core' ? 'coreCeus' : 'skillsCeus'] = null; }
+  if (key === 'core' || key === 'skills' || key === 'total') {
+    state.additional = freshAdditional();
+    if (key !== 'total') state.alaCarte[key === 'core' ? 'coreCeus' : 'skillsCeus'] = null;
+  }
   if (key === 'supervision') { state.alaCarte.individualHours = null; state.alaCarte.groupSessions = null; }
   syncQuestion(key);
   requestEstimate();
 }
 
 function openMode(mode) {
-  state.mode = mode;
-  if (mode === 'ala') state.alaStarted = true;
+  state.mode = mode || null;
   save();
   const flow = $main.querySelector('#flow');
   flow.innerHTML = flowSection();
@@ -530,12 +499,15 @@ function openMode(mode) {
   requestEstimate(true);
   const sec = flow.querySelector('.flow');
   if (sec) {
-    // Land the section's heading just below where the estimate bar sits.
+    // Land the heading just below where the estimate bar sits; focus the heading, not an
+    // input (focusing an input on phones scrolls it under the bar).
     const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const top = sec.getBoundingClientRect().top + window.scrollY - (($bar.offsetHeight || 96) + 12);
     const h = sec.querySelector('h2');
     if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
     window.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+  } else {
+    $main.querySelector('[data-testid="ala-action"]')?.focus();
   }
 }
 
@@ -563,7 +535,8 @@ $main.addEventListener('change', (ev) => {
     const prev = state.path;
     state.path = t.value;
     if (prev !== t.value) { state.alaCarte = freshAla(); state.additional = freshAdditional(); }
-    if (!deciding()) for (const k of ['core', 'skills', 'supervision']) if (typeof state[k] === 'number') state[k] = Math.min(state[k], pathCfg().benchmarks[k]);
+    if (!deciding()) for (const k of ['total', 'core', 'skills', 'supervision']) if (typeof state[k] === 'number') state[k] = Math.min(state[k], maxFor(k));
+    if (hasCategories()) openState['by-category'] = true;
     result = null;
     render();
     $main.querySelector(`input[name="path"][value="${t.value}"]`)?.focus();
@@ -588,8 +561,11 @@ $main.addEventListener('toggle', (ev) => {
 $main.addEventListener('click', (ev) => {
   const t = ev.target.closest('button');
   if (!t) return;
-  if (t.dataset.mode) openMode(t.dataset.mode);
-  else if (t.dataset.zero) setHours(t.dataset.zero, 0);
+  if ('mode' in t.dataset) openMode(t.dataset.mode);
+  else if ('openCategories' in t.dataset) {
+    const d = $main.querySelector('#by-category');
+    if (d) { d.open = true; openState['by-category'] = true; d.querySelector('input[type=number]')?.focus(); }
+  } else if (t.dataset.zero) setHours(t.dataset.zero, 0);
   else if (t.dataset.unsure) setHours(t.dataset.unsure, state[t.dataset.unsure] === 'unsure' ? null : 'unsure');
   else if (t.dataset.addCredits) {
     const c = Number($main.querySelector('#credits-in').value);
@@ -607,6 +583,7 @@ $main.addEventListener('click', (ev) => {
     config = await (await fetch('/api/config')).json();
     load();
     if (state.path && state.path !== 'deciding' && !config.paths.some((x) => x.path === state.path && x.enabled)) state = fresh();
+    if (hasCategories()) openState['by-category'] = true;
     render();
     if (state.path) requestEstimate(true);
   } catch {

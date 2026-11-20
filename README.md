@@ -55,7 +55,7 @@ AI is used only to summarize documents, extract course details and **explicitly 
 
 ## Track finder & tuition (default page)
 
-Headline **“See what your prior training could save you.”** followed by one sentence about coursework already completed. NWIOI offers two options per credential:
+Headline **“Build on the training you’ve already done.”** followed by one sentence on using coursework already completed. NWIOI offers two options per credential:
 
 - **Core Program · Tier I:** 99 CEUs of NWIOI coursework, supervision for the credential, and SAR at a fixed tuition. SAR is always included, and tuition stays the same if the student has already completed one.
 - **À La Carte · Tier II:** individual courses, NWIOI supervision and SAR, bought as needed.
@@ -66,22 +66,26 @@ Headline **“See what your prior training could save you.”** followed by one 
 | Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours |
 | Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours |
 
-**Page order:**
-1. Headline.
-2. Credential picker.
-3. Two compact option cards, right under the picker. They sit side by side on desktop and stack on mobile.
-   - **Core Program** card: **Package tuition**, pay in full, “99 CEUs, supervision, and SAR included” and **See what my prior training could save**. Once prior coursework is entered, it also shows the CEUs beyond Core’s 99 and their cost through NWIOI, labeled as a planning estimate.
-   - **À La Carte** card: answers “How much coursework do I still need, and what would it cost through NWIOI?”
-     - Before prior coursework is entered, it shows **Estimate what you still need** and **Add prior coursework** instead of a dollar amount.
-     - Afterwards it shows the **estimated CEUs remaining** first, with Core Knowledge and Skills Training gaps listed separately. The **Estimated coursework cost** comes second, labeled as a planning estimate. Example: 61 CEUs × $35 = $2,135.
-     - Then **Add or update my prior coursework**, “Supervision and SAR can be added separately”, and **Build my estimate**.
-   - Both cards use the same prior-coursework inputs. À La Carte’s remaining CEUs = (90 − CKA hours) + (60 − skills hours). Core’s remaining is what’s left after its 99 CEUs.
-4. **Compare full details**, which stays collapsed.
-5. The flow the visitor picked:
-   - **Prior training (Core):** just the two education inputs (CKAs, credential-specific skills training) plus the credit helper. The personalized result sits directly beneath them, leading with “Your prior training could save you about $875 in additional coursework.” when the answers support it. That's the counted hours × the planning rate. Then come the remaining CEUs, the combined cost, and **Review my prior training**. The approved marketing paragraph follows the result.
-   - **À La Carte builder:** coursework quantities first, defaulting to the estimated remaining CEUs. Then **Optional additions: supervision and SAR**, which are counted only once chosen. It shows one total and a “See what’s included” list. If fewer CEUs are selected than the estimate says may be needed, the total is labeled **Your selected items**.
+**Page order (one short flow):**
+1. Headline and credential picker.
+2. **“About how many hours of relevant training have you already completed?”** This is one optional rough total, with “None yet” and “I’m not sure”.
+   - **I know my hours by category** (collapsed) holds the CKA and skills training inputs and the credit helper.
+   - When both category answers are filled in, they replace the total for a more detailed estimate.
+3. **The result, directly below the question:**
+   - “You may already have 25 hours covered.”
+   - “That’s about three full days of training…” This uses `trainingDay.hours` (8, to confirm) and only appears for at least one day.
+   - Then the planning-estimate lines:
+     - **Core Program:** CEUs beyond its 99, with a rough-estimate label when no curriculum mapping is set.
+     - **À La Carte:** remaining CEUs and cost, shown only with category hours. A total alone can't separate core from skills gaps.
+   - Then the one primary action, **Review my prior training**.
+   - The remaining-coursework split (NWIOI or other institutes) and the combined cost sit behind **Plan your remaining coursework**.
+   - With “I’m not sure”, the coursework review is offered directly and no number is guessed.
+4. **Core Program** and **À La Carte** as two short rows, with “Prior coursework may reduce the additional training you need to take or buy.”
+   - Core: 99 CEUs, supervision, and SAR, at its fixed **Package tuition**.
+   - À La Carte: individual courses or supervision. Its **Estimated coursework cost** appears once category hours are known.
+   - **Compare full details** and **Build an À La Carte estimate** are secondary links.
 
-The sticky estimate bar only slides in once the option cards, which already show the price, have scrolled out of view.
+The sticky estimate bar only slides in once the rows have scrolled away.
 
 **Styling** follows nwioi.com and is scoped to the finder page:
 - Colors: dark brown band (#482117), gold/tan square buttons (#D3A468), olive accent (#3D4C28).

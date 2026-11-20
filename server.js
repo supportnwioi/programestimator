@@ -67,7 +67,7 @@ app.post('/api/track-estimate', (req, res) => {
   const m = b.alaCarte && typeof b.alaCarte === 'object' ? b.alaCarte : {};
   const a = b.additional && typeof b.additional === 'object' ? b.additional : {};
   const result = trackEstimate(catalog, r, {
-    core: val(b.core), skills: val(b.skills), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
+    total: val(b.total), core: val(b.core), skills: val(b.skills), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
     additional: { nwioiCeus: a.nwioiCeus ?? null, outsideCost: a.outsideCost ?? null },
     alaCarte: { coreCeus: m.coreCeus ?? null, skillsCeus: m.skillsCeus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
   }, { preview: isPreview(req), links: { booking: s.schedulingUrl, contact: s.contactUrl } });
