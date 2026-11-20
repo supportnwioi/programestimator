@@ -235,3 +235,18 @@ details.expand > summary { cursor: pointer; color: var(--accent); font-weight: 6
 .item-list li::before { content: "✓"; position: absolute; left: 2px; color: var(--accent); font-weight: 700; }
 .compare-live .based-on { flex-basis: 100%; margin: 2px 0 0; }
 .compare-live details.expand { flex-basis: 100%; margin: 4px 0 0; }
+
+/* two tiers: Core is the center; prior-training summary under it */
+.track-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .track-grid { grid-template-columns: 1fr; } }
+.prior-intro h2 { margin-top: 0; }
+.prior-summary { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 12px 0; background: var(--surface-2); }
+.prior-summary .small-h { margin-top: 0; }
+.prior-summary .steps { padding-left: 20px; margin: 6px 0; }
+.prior-summary .steps li { margin: 6px 0; }
+.prior-summary .steps p { margin: 2px 0; }
+.prior-summary .additional .field input { max-width: 140px; display: block; margin-bottom: 2px; }
+.combined-table td { font-size: .95rem; }
+.combined-table td.amt strong, [data-testid="combined-cost"] { font-weight: 700; }
+[data-testid="combined-cost"].flash, [data-testid="price-alaCarte"].flash { animation: compare-flash .7s ease-out; }
+.savings { margin: 4px 0; }

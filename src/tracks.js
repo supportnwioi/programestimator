@@ -1,8 +1,10 @@
-// Track finder: recommends an NWIOI tier for a credential and prices it.
-// Comprehensive and Core are fixed package prices: prior work never changes
-// them. Modular is calculated from what the visitor plans to buy. This is
-// separate from the detailed engine (src/engine.js), whose itemized retail
-// calculation must never be shown as package tuition.
+// Track finder: two NWIOI tiers per credential.
+// Tier I · Core Program: fixed package tuition (99 CEUs + supervision + SAR).
+//   Prior education doesn't change it; it changes how much additional
+//   coursework the student may still need, priced at the planning rate.
+// Tier II · À La Carte: individual courses, supervision and SAR, shown as one
+//   total with a quantities-only breakdown (no unit prices sent to the browser).
+// Separate from the detailed engine (src/engine.js).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './store.js';
@@ -30,35 +32,30 @@ export function benchmarks(ruleset) {
   };
 }
 
-// Checks that each credential's curriculum and supervision match its AASECT ruleset.
+// Checks each credential's Core Program against its AASECT ruleset.
 export function validateCatalog(catalog, rulesetsByPath) {
   const errors = [];
   for (const [cred, tiers] of Object.entries(catalog.credentials || {})) {
     const r = rulesetsByPath[cred];
     if (!r) { errors.push(`${cred}: no active ruleset`); continue; }
     const b = benchmarks(r);
-    const c = tiers.comprehensive;
-    if (!c) { errors.push(`${cred}: missing comprehensive`); continue; }
-    const sum = (c.curriculum || []).reduce((s, x) => s + (Number(x.ceus) || 0), 0);
-    if (sum !== b.education) errors.push(`${cred}: Comprehensive curriculum is ${sum} CEUs; the ${r.pathName} benchmark is ${b.education}`);
-    const coreItem = (c.curriculum || []).find((x) => x.requirement === 'core');
-    if (!coreItem || coreItem.ceus !== b.core) errors.push(`${cred}: core knowledge CEUs must equal ${b.core}`);
-    const tr = (c.curriculum || []).find((x) => x.requirement === 'training');
-    if (!tr || tr.name.toLowerCase() !== b.trainingLabel.toLowerCase()) errors.push(`${cred}: skills training must be "${b.trainingLabel}" (found "${tr?.name}")`);
-    if (tr && tr.ceus !== b.skills) errors.push(`${cred}: skills training CEUs must equal ${b.skills}`);
+    const c = tiers.core;
+    if (!c) { errors.push(`${cred}: missing core`); continue; }
+    if (!(c.tuition > 0)) errors.push(`${cred}: Core tuition missing`);
+    if (!(c.ceus > 0 && c.ceus <= b.education)) errors.push(`${cred}: Core CEUs must be between 1 and ${b.education}`);
+    if (c.includesSar !== true) errors.push(`${cred}: Core must include SAR`);
+    const m = c.curriculumMapping;
+    if (m) {
+      if (m.core + m.skills !== c.ceus) errors.push(`${cred}: curriculum mapping ${m.core} + ${m.skills} ≠ ${c.ceus} CEUs`);
+      if (m.core > b.core) errors.push(`${cred}: mapped core knowledge ${m.core} exceeds ${b.core}`);
+      if (m.skills > b.skills) errors.push(`${cred}: mapped skills training ${m.skills} exceeds ${b.skills}`);
+    }
     const s = c.supervision || {};
     if (s.individualHours + s.groupHours !== b.supervision) errors.push(`${cred}: supervision package is ${s.individualHours + s.groupHours} hours; target is ${b.supervision}`);
     if (s.groupSessions * s.groupSessionHours !== s.groupHours) errors.push(`${cred}: ${s.groupSessions} × ${s.groupSessionHours}-hour group sessions ≠ ${s.groupHours} group hours`);
     if (s.individualHours < req(r, 'supervision').individualMin) errors.push(`${cred}: individual supervision below the AASECT minimum of ${req(r, 'supervision').individualMin}`);
     if (c.minMonths !== b.minMonths) errors.push(`${cred}: minimum supervision period ${c.minMonths} months; AASECT requires ${b.minMonths}`);
-    if (!(c.tuition > 0)) errors.push(`${cred}: Comprehensive tuition missing`);
-    const core = tiers.core || {};
-    if (core.defined) {
-      if (core.ceus + core.fitCeus !== b.education) errors.push(`${cred}: Core ${core.ceus} CEUs + ${core.fitCeus} prior CEUs ≠ ${b.education}`);
-      if (core.supervisionHours !== b.supervision) errors.push(`${cred}: Core supervision ${core.supervisionHours} ≠ target ${b.supervision}`);
-      if (!(core.tuition > 0)) errors.push(`${cred}: Core tuition missing`);
-    }
-    for (const st of [c.status, core.status, tiers.modular?.ceuRate?.status, tiers.modular?.sar?.status, tiers.modular?.supervision?.status].filter(Boolean)) {
+    for (const st of [c.status, tiers.alaCarte?.ceuRate?.status, tiers.alaCarte?.sar?.status, tiers.alaCarte?.supervision?.status].filter(Boolean)) {
       if (!['draft', 'approved'].includes(st)) errors.push(`${cred}: status must be "draft" or "approved" (found "${st}")`);
     }
   }
@@ -79,6 +76,7 @@ function parseHours(v, max) {
 }
 const answered = (a) => a.state !== 'unanswered';
 const qty = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Math.round(Number(v)));
+const dollars = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Math.round(Number(v) * 100) / 100);
 
 function planText(plans, preview) {
   return (plans || []).filter((p) => visible(p.status, preview) && p.monthly > 0 && p.months > 0 && p.total > 0)
@@ -86,9 +84,34 @@ function planText(plans, preview) {
 }
 
 /**
+ * What prior education may cover alongside Core, and what may still be needed.
+ * With a confirmed curriculum mapping, each category is calculated on its own and
+ * prior hours that overlap NWIOI's curriculum count once. Without one, the gap is
+ * education benchmark − Core CEUs (e.g. 150 − 99 = 51): a rough planning estimate.
+ */
+export function priorCoverage(b, core, ck, sk) {
+  const mapping = core.curriculumMapping || null;
+  const gap = b.education - core.ceus;
+  const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, rough: !mapping };
+  if (ck.state !== 'hours' || sk.state !== 'hours') {
+    return { ...base, state: 'unresolved', knownCore: ck.state === 'hours' ? ck.hours : null, knownSkills: sk.state === 'hours' ? sk.hours : null, unsure: [ck, sk].some((a) => a.state === 'unsure') };
+  }
+  const reported = ck.hours + sk.hours;
+  if (mapping) {
+    const coreGap = Math.max(0, b.core - mapping.core - ck.hours);
+    const skillsGap = Math.max(0, b.skills - mapping.skills - sk.hours);
+    const counted = (b.core - mapping.core - coreGap) + (b.skills - mapping.skills - skillsGap);
+    return { ...base, state: 'known', reported, counted, overlap: reported - counted, remaining: coreGap + skillsGap, remainingCore: coreGap, remainingSkills: skillsGap };
+  }
+  const counted = Math.min(gap, reported);
+  return { ...base, state: 'known', reported, counted, overlap: reported - counted, remaining: gap - counted, remainingCore: null, remainingSkills: null };
+}
+
+/**
  * input: { core, skills, supervision: number|'unsure'|null; sar: 'yes'|'no'|'unsure'|null;
- *          supervisionWhere: 'nwioi'|'outside'|'help'|null; coreSar: boolean|null;
- *          modular: { coreCeus, skillsCeus, sar, individualHours, groupSessions } (null = use suggestion) }
+ *          supervisionWhere: 'nwioi'|'outside'|'help'|null;
+ *          additional: { nwioiCeus, outsideCost } (null = default);
+ *          alaCarte: { coreCeus, skillsCeus, sar, individualHours, groupSessions } (null = suggestion) }
  * links: { booking, contact } raw URLs from settings
  */
 export function trackEstimate(catalog, ruleset, input, { preview = false, links = {} } = {}) {
@@ -102,89 +125,84 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const sar = ['yes', 'no', 'unsure'].includes(input.sar) ? input.sar : null;
   const where = ['nwioi', 'outside', 'help'].includes(input.supervisionWhere) ? input.supervisionWhere : null;
   const booking = usableLink(links.booking, preview);
-  // SAR: "No" includes it by default; unanswered or "not sure" offers it as an add-on.
-  const sarOffered = sar !== 'yes';
-  const sarDefault = sar === 'no';
+  const library = usableLink(catalog.library?.url, preview);
   const pifCfg = catalog.payInFull || {};
-  const pifVisible = pifCfg.rate > 0 && visible(pifCfg.status, preview);
+  const planRate = catalog.planningRate || {};
+  const planRateVisible = planRate.perCeu > 0 && visible(planRate.status, preview);
 
-  // Fixed package price: standard tuition plus optional add-ons; pay-in-full on the package only.
-  function packagePrice(tierKey, tuition, addOns, status, confirmText) {
-    if (!visible(status, preview)) return { amount: null, confirmText };
-    const amount = tuition + addOns;
-    const price = { amount, display: money(amount), label: 'Standard NWIOI tuition', fixed: true, draft: status !== 'approved' };
-    if (pifVisible && (pifCfg.tiers || []).includes(tierKey)) {
-      const pkg = cents(tuition * (1 - pifCfg.rate));
-      const due = cents(pkg + (pifCfg.appliesToAddOns ? cents(addOns * (1 - pifCfg.rate)) : addOns));
-      price.payInFull = { amount: due, display: money2(due), savings: money2(cents(amount - due)), percent: Math.round(pifCfg.rate * 100), draft: pifCfg.status !== 'approved' };
-    }
-    return price;
-  }
-
-  // ---- Comprehensive (fixed)
-  const c = tiers.comprehensive;
+  // ---- Tier I · Core Program (fixed tuition, SAR included)
+  const c = tiers.core;
   const cVisible = visible(c.status, preview);
+  let corePrice = { amount: null, confirmText: 'Confirm Core tuition with admissions' };
+  if (cVisible) {
+    corePrice = { amount: c.tuition, display: money(c.tuition), label: 'Standard NWIOI tuition', fixed: true, draft: c.status !== 'approved' };
+    if (pifCfg.rate > 0 && visible(pifCfg.status, preview) && (pifCfg.tiers || []).includes('core')) {
+      const due = cents(c.tuition * (1 - pifCfg.rate));
+      corePrice.payInFull = { amount: due, display: money2(due), savings: money2(cents(c.tuition - due)), percent: Math.round(pifCfg.rate * 100), draft: pifCfg.status !== 'approved' };
+    }
+  }
   const enrollLink = cVisible ? usableLink(c.links?.enroll, preview) : null;
-  const comprehensive = {
-    key: 'comprehensive', name: names.comprehensive, available: true,
-    price: packagePrice('comprehensive', c.tuition, 0, c.status, 'Confirm tuition with admissions'),
+  const core = {
+    key: 'core', name: names.core, price: corePrice,
     paymentPlans: cVisible ? planText(c.paymentPlans, preview) : [],
     lead: c.lead,
     included: [
-      ...c.curriculum.map((x) => `${x.ceus} CEUs · ${x.name}`),
+      `${c.ceus} CEUs of NWIOI coursework`,
       `Supervision: ${c.supervision.description} (over at least ${c.minMonths} months)`,
-      ...(c.includesSar ? ['SAR included'] : []),
-      ...c.highlights.filter((h) => !/SAR included/i.test(h)),
+      'SAR included',
+      ...c.highlights,
     ],
-    cta: { label: 'Explore enrollment', link: enrollLink || booking, viaAdmissions: !enrollLink },
+    cta: { label: 'Review my prior training', link: booking },
+    secondary: { label: 'Explore the NWIOI course library', link: library },
+    enroll: enrollLink,
     extraLinks: [['Meet your supervisors', c.links?.supervisors], ['See a sample training weekend', c.links?.sampleWeekend]]
       .map(([label, u]) => ({ label, link: usableLink(u, preview) })).filter((x) => x.link),
   };
 
-  // ---- Core (fixed; only where NWIOI has defined it)
-  const k = tiers.core || {};
-  let core = null;
-  if (k.defined) {
-    const kVisible = visible(k.status, preview);
-    const coreSar = sarOffered && (input.coreSar ?? sarDefault);
-    core = {
-      key: 'core', name: names.core, available: true,
-      price: { ...packagePrice('core', k.tuition, coreSar ? k.sarAddOn : 0, k.status, 'Confirm Core tuition with admissions'), sarIncluded: coreSar, sarOffered, sarAddOn: kVisible ? money(k.sarAddOn) : null },
-      paymentPlans: kVisible ? planText(k.paymentPlans, preview) : [],
-      included: [`${k.ceus} CEUs of NWIOI coursework`, `Supervision: ${k.supervision.description}`, `Your prior education may cover the remaining ${k.fitCeus} CEUs (admissions confirms the topics and live hours)`, sarOffered ? 'SAR available as an add-on' : 'You said you’ve completed a SAR (admissions will confirm it)'],
-      cta: { label: 'Review my prior training', link: booking, viaAdmissions: true },
-      note: 'We’ll review what you’ve already completed and how it fits the Core curriculum, then confirm your tuition before you decide.',
-    };
+  // ---- Prior training: what may be covered, what NWIOI includes, what may still be needed
+  const cov = priorCoverage(b, c, ck, sk);
+  const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null };
+  if (cov.state === 'known') {
+    const nwioiCeus = Math.min(qty(input.additional?.nwioiCeus) ?? cov.remaining, cov.remaining);
+    const outsideCeus = cov.remaining - nwioiCeus;
+    const outsideCost = outsideCeus > 0 ? dollars(input.additional?.outsideCost) : null;
+    const additionalNwioi = planRateVisible ? nwioiCeus * planRate.perCeu : null;
+    prior.nwioiAdditionalCeus = nwioiCeus;
+    prior.outsideCeus = outsideCeus;
+    prior.outsideCost = outsideCost;
+    prior.additional = additionalNwioi !== null ? { amount: additionalNwioi, display: money(additionalNwioi) } : null;
+    const combinedKnown = cVisible && additionalNwioi !== null && (outsideCeus === 0 || outsideCost !== null);
+    prior.combined = cVisible && additionalNwioi !== null
+      ? { amount: c.tuition + additionalNwioi + (outsideCost || 0), display: money(c.tuition + additionalNwioi + (outsideCost || 0)), complete: combinedKnown }
+      : null;
   }
 
-  // ---- Modular (calculated from what they plan to buy; each education category on its own)
-  const m = tiers.modular;
+  // ---- Tier II · À La Carte (one total; quantities only leave the server)
+  const m = tiers.alaCarte;
   const rate = m.ceuRate.amount;
   const rateVis = visible(m.ceuRate.status, preview), sarVis = visible(m.sar.status, preview), supVis = visible(m.supervision.status, preview);
+  const sarOffered = sar !== 'yes';
   const remainingSup = sup.state === 'hours' ? Math.max(0, b.supervision - sup.hours) : null;
   const pkg = c.supervision;
   const suggestion = {
     coreCeus: ck.state === 'hours' ? b.core - ck.hours : null,
     skillsCeus: sk.state === 'hours' ? b.skills - sk.hours : null,
-    sar: sarDefault,
+    sar: sar === 'no',
     individualHours: where === 'outside' ? 0 : remainingSup === null ? null : Math.round(remainingSup * pkg.individualHours / b.supervision),
     groupSessions: null,
   };
   if (suggestion.individualHours !== null && remainingSup !== null) suggestion.groupSessions = where === 'outside' ? 0 : Math.ceil((remainingSup - suggestion.individualHours) / m.supervision.groupSessionHours);
   const sel = {
-    coreCeus: qty(input.modular?.coreCeus) ?? suggestion.coreCeus,
-    skillsCeus: qty(input.modular?.skillsCeus) ?? suggestion.skillsCeus,
-    sar: sarOffered && (typeof input.modular?.sar === 'boolean' ? input.modular.sar : suggestion.sar),
-    individualHours: where === 'outside' ? 0 : qty(input.modular?.individualHours) ?? suggestion.individualHours,
-    groupSessions: where === 'outside' ? 0 : qty(input.modular?.groupSessions) ?? suggestion.groupSessions,
+    coreCeus: qty(input.alaCarte?.coreCeus) ?? suggestion.coreCeus,
+    skillsCeus: qty(input.alaCarte?.skillsCeus) ?? suggestion.skillsCeus,
+    sar: sarOffered && (typeof input.alaCarte?.sar === 'boolean' ? input.alaCarte.sar : suggestion.sar),
+    individualHours: where === 'outside' ? 0 : qty(input.alaCarte?.individualHours) ?? suggestion.individualHours,
+    groupSessions: where === 'outside' ? 0 : qty(input.alaCarte?.groupSessions) ?? suggestion.groupSessions,
   };
-  // Extra hours in one category never close a gap in the other: each is capped separately.
   if (sel.coreCeus !== null) sel.coreCeus = Math.min(sel.coreCeus, b.core);
   if (sel.skillsCeus !== null) sel.skillsCeus = Math.min(sel.skillsCeus, b.skills);
   const lines = [];
   const missing = [];
-  // Lines keep their amounts here (server side) for the total; only plain-language
-  // quantities are sent to the browser.
   for (const [key, label, n] of [['coreCeus', 'Core Knowledge CEUs', sel.coreCeus], ['skillsCeus', `${b.trainingLabel} CEUs`, sel.skillsCeus]]) {
     if (n === null) missing.push(key);
     else if (!rateVis) missing.push('ceuRate');
@@ -199,72 +217,68 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     } else if (sel.individualHours + sel.groupSessions > 0) missing.push('supervisionRates');
   }
   const total = lines.reduce((s, l) => s + l.amount, 0);
-  // "Based on the courses, supervision and SAR you’d buy…": built from what's selected.
   const parts = [lines.some((l) => l.group === 'education') && 'courses', lines.some((l) => l.group === 'supervision') && 'supervision', lines.some((l) => l.group === 'sar') && 'SAR'].filter(Boolean);
   const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
-  const basedOn = joined ? `Based on the ${joined} you’d buy individually from NWIOI through ${names.modular}.` : null;
-  const draftModular = [rateVis && m.ceuRate.status !== 'approved', sarVis && sel.sar && m.sar.status !== 'approved', supVis && where !== 'outside' && m.supervision.status !== 'approved'].some(Boolean);
-  const modularNotes = [];
-  if (where === 'outside') modularNotes.push('You’ll pay your outside supervisor separately.');
-  if (missing.includes('coreCeus')) modularNotes.push(ck.state === 'unsure' ? 'Core knowledge hours still need review. Choose how many core CEUs you expect to buy, or review it with admissions.' : 'Choose how many core knowledge CEUs you expect to buy.');
-  if (missing.includes('skillsCeus')) modularNotes.push(sk.state === 'unsure' ? `${b.trainingLabel} hours still need review. Choose how many you expect to buy, or review it with admissions.` : `Choose how many ${b.trainingLabel.toLowerCase()} CEUs you expect to buy.`);
-  if (missing.includes('supervisionQty')) modularNotes.push(sup.state === 'unsure' ? 'Your supervision hours still need review. Choose the supervision you’d buy, or review it with admissions.' : 'Choose how much supervision you’d buy from NWIOI.');
-  if (missing.includes('supervisionRates')) modularNotes.push('Confirm supervision rates for this credential with admissions.');
-  if (missing.includes('ceuRate') || missing.includes('sarPrice')) modularNotes.push('Confirm Modular pricing with admissions.');
-  const modularComplete = !missing.length;
-  const modular = {
-    key: 'modular', name: names.modular, available: true,
-    price: lines.length || modularComplete
-      ? { amount: total, display: money(total), label: 'Estimated cost with NWIOI', fixed: false, draft: draftModular, complete: modularComplete }
-      : { amount: null, label: 'Estimated cost with NWIOI', confirmText: missing.includes('ceuRate') ? 'Confirm Modular pricing with admissions' : 'Choose what you’d buy to see your estimate' },
-    // Quantities only: no unit prices, formulas or per-line amounts leave the server.
-    items: lines.map((l) => l.label), basedOn, notes: modularNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
-    sarOffer: sarOffered && sarVis ? (sar === 'no' ? `Add SAR (${money(m.sar.price)})` : `Add SAR for ${money(m.sar.price)} if needed`) : sarOffered ? 'Add SAR if needed' : null,
+  const basedOn = joined ? `Based on the ${joined} you’d buy individually from NWIOI through ${names.alaCarte}.` : null;
+  const draftAla = [rateVis && m.ceuRate.status !== 'approved', sarVis && sel.sar && m.sar.status !== 'approved', supVis && where !== 'outside' && m.supervision.status !== 'approved'].some(Boolean);
+  const alaNotes = [];
+  if (where === 'outside') alaNotes.push('You’ll pay your outside supervisor separately.');
+  if (missing.includes('coreCeus')) alaNotes.push(ck.state === 'unsure' ? 'Core knowledge hours still need review. Choose how many core CEUs you expect to buy, or review it with admissions.' : 'Choose how many core knowledge CEUs you expect to buy.');
+  if (missing.includes('skillsCeus')) alaNotes.push(sk.state === 'unsure' ? `${b.trainingLabel} hours still need review. Choose how many you expect to buy, or review it with admissions.` : `Choose how many ${b.trainingLabel.toLowerCase()} CEUs you expect to buy.`);
+  if (missing.includes('supervisionQty')) alaNotes.push(sup.state === 'unsure' ? 'Your supervision hours still need review. Choose the supervision you’d buy, or review it with admissions.' : 'Choose how much supervision you’d buy from NWIOI.');
+  if (missing.includes('supervisionRates')) alaNotes.push('Confirm supervision rates for this credential with admissions.');
+  if (missing.includes('ceuRate') || missing.includes('sarPrice')) alaNotes.push('Confirm À La Carte pricing with admissions.');
+  const alaComplete = !missing.length;
+  const alaCarte = {
+    key: 'alaCarte', name: names.alaCarte,
+    price: lines.length || alaComplete
+      ? { amount: total, display: money(total), label: 'Estimated cost with NWIOI', fixed: false, draft: draftAla, complete: alaComplete }
+      : { amount: null, label: 'Estimated cost with NWIOI', confirmText: missing.includes('ceuRate') ? 'Confirm À La Carte pricing with admissions' : 'Choose what you’d buy to see your estimate' },
+    items: lines.map((l) => l.label), basedOn, notes: alaNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
+    sarOffer: sarOffered ? (sar === 'no' ? 'Add SAR' : 'Add SAR if needed') : null,
     units: { groupSessionHours: m.supervision.groupSessionHours, trainingLabel: b.trainingLabel },
-    included: ['The CEU courses you choose', where === 'outside' ? 'Supervision with your outside supervisor (paid separately)' : 'Supervision hours and group sessions as you need them', 'SAR as an add-on if you need one'],
-    cta: { label: 'Explore courses', link: usableLink(m.links?.courses, preview) || booking, viaAdmissions: !usableLink(m.links?.courses, preview) },
-    secondary: { label: 'Help me choose what I need', link: booking },
+    included: ['The individual courses you choose', where === 'outside' ? 'Supervision with your outside supervisor (paid separately)' : 'NWIOI supervision hours and group sessions as you need them', 'SAR if you need one'],
+    cta: { label: 'Explore the NWIOI course library', link: usableLink(m.links?.courses, preview) || library },
+    secondary: { label: 'Book a free admissions call', link: booking },
   };
+
+  // ---- Package savings: only when buying the same components and quantities separately.
+  // Core = 99 CEUs + the supervision package + SAR. Group hours must divide evenly into
+  // À La Carte sessions to be the same quantity; otherwise no savings figure is shown.
+  let savings = null;
+  const sameGroupSessions = pkg.groupHours / m.supervision.groupSessionHours;
+  if (cVisible && rateVis && sarVis && supVis && Number.isInteger(sameGroupSessions)) {
+    const separately = c.ceus * rate + pkg.individualHours * m.supervision.individualRate + sameGroupSessions * m.supervision.groupSessionRate + m.sar.price;
+    if (separately > c.tuition) {
+      savings = {
+        amount: separately - c.tuition, display: money(separately - c.tuition), separately: money(separately),
+        items: [`${c.ceus} CEUs`, `${pkg.individualHours} hours of individual supervision`, `${sameGroupSessions} group supervision sessions, ${m.supervision.groupSessionHours} hours each (${pkg.groupHours} group hours)`, 'SAR'],
+      };
+    }
+  }
 
   // ---- Recommendation: only once the answers support one.
   const ready = where === 'outside' || (where !== null && answered(ck) && answered(sk) && answered(sup));
   const reasons = [];
   const priorSupShare = sup.state === 'hours' ? sup.hours / b.supervision : 0;
   const fullSupervisionNeeded = where !== 'outside' && !(priorSupShare >= catalog.recommendation.modularWhenPriorSupervisionShareAtLeast);
-  const priorEducation = ck.state === 'hours' && sk.state === 'hours' ? ck.hours + sk.hours : null;
-  const coreFit = Boolean(core) && ready && fullSupervisionNeeded && priorEducation !== null && priorEducation >= k.fitCeus;
   let recommended = null;
   if (ready) {
     if (!fullSupervisionNeeded) {
-      recommended = 'modular';
-      reasons.push(where === 'outside' ? 'You plan to do your supervision with an outside supervisor, so you only need NWIOI coursework and add-ons.'
-        : `You’ve already completed about ${sup.hours} of the ${b.supervision} supervision hours, so you don’t need a full supervision package.`);
-      reasons.push('Modular lets you buy only the CEUs and supervision you still need.');
-    } else if (coreFit) {
-      recommended = 'core';
-      reasons.push(`Core may be your fit. You’ve completed about ${priorEducation} hours of education that may apply (${ck.hours} core knowledge + ${sk.hours} skills training), and Core’s ${k.ceus} CEUs assume your prior education covers about ${k.fitCeus}.`);
-      reasons.push('You still want the full NWIOI supervision package, which Core includes.');
-      reasons.push('Admissions will confirm that your prior training and the Core curriculum together cover the required topics and live hours.');
+      recommended = 'alaCarte';
+      reasons.push(where === 'outside' ? 'You plan to do your supervision with an outside supervisor. Core includes NWIOI supervision, so choosing just the courses you need may fit better.'
+        : `You’ve already completed about ${sup.hours} of the ${b.supervision} supervision hours, so you may not need Core’s full supervision package.`);
+      reasons.push('À La Carte lets you choose individual courses, supervision or SAR.');
     } else {
-      const modularCheaper = modularComplete && supVis && rateVis && total < c.tuition;
-      if (modularCheaper) {
-        recommended = 'modular';
-        reasons.push('Based on your answers, buying only what you still need may cost less than the full Comprehensive package.');
-        reasons.push('You can adjust the quantities to match what you expect to buy.');
-      } else {
-        recommended = 'comprehensive';
-        reasons.push('You’d like NWIOI education and supervision in one program.');
-        reasons.push(priorEducation === 0 ? `You’re starting from scratch, and the full curriculum covers all ${b.core} core knowledge and ${b.skills} skills training hours.`
-          : priorEducation !== null ? `With about ${priorEducation} education hours so far, the full curriculum gives you a structured path through all ${b.education} hours.`
-            : 'The full curriculum covers the education requirement, so you don’t need to sort out which prior courses count before you start.');
-        reasons.push('Tuition is a fixed package price. Prior coursework doesn’t change it.');
-      }
+      recommended = 'core';
+      reasons.push(`Core includes ${c.ceus} CEUs, your full supervision package, and SAR at a fixed tuition.`);
+      if (cov.state === 'known') reasons.push(cov.remaining === 0 ? 'Your prior training may already cover the rest of the education requirement.' : `Your prior training may cover about ${cov.counted} hours, leaving about ${cov.remaining} CEUs to complete through NWIOI or another institute.`);
+      reasons.push('Admissions will review your prior training to confirm which topics and live hours count.');
     }
   }
   const notes = [];
-  if (!ready) notes.push('Answer the questions to see which track fits you best. Until then, here’s the complete program for this credential.');
-  else if ([ck, sk, sup].some((a) => a.state === 'unsure')) notes.push('You weren’t sure about some of your hours, so this recommendation is a starting point. Admissions can help you sort out what counts.');
-  if (sar === 'yes') notes.push('You said you’ve completed a SAR. Admissions can confirm whether it meets the requirement.');
+  if (!ready) notes.push('Answer the questions to see which tier fits you best. Until then, here’s the Core Program for this credential.');
+  if (sar === 'yes') notes.push('You said you’ve completed a SAR. SAR is included in Core either way, and Core tuition stays the same.');
   if (where === 'help' && ready) notes.push('Not sure where to do your supervision? We’ve assumed NWIOI for now. Admissions can help you decide.');
 
   const sch = catalog.scholarship;
@@ -274,10 +288,9 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
 
   return {
     credential: cred, pathName: ruleset.pathName, rulesetVersion: ruleset.version, benchmarks: b,
-    recommended, startingPoint: recommended ?? 'comprehensive', ready, reasons, notes, coreFit, preview, tierNames: names,
-    tracks: { comprehensive, core, modular },
-    coreNotDefinedNote: core ? null : `NWIOI hasn’t defined a Core track for the ${ruleset.pathName} credential yet. If you’ve completed some training, admissions can review it and help you choose between Comprehensive and Modular.`,
+    recommended, startingPoint: recommended ?? 'core', ready, reasons, notes, preview, tierNames: names,
+    tracks: { core, alaCarte }, prior, savings,
     examples: { core: catalog.coreKnowledgeExample, skills: tiers.skillsExample },
-    scholarship, booking, contact: usableLink(links.contact, preview),
+    scholarship, booking, library, contact: usableLink(links.contact, preview),
   };
 }

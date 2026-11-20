@@ -52,7 +52,7 @@ app.get('/api/config', (req, res) => {
   const paths = Object.values(activeRulesets()).map(publicRuleset);
   const catalog = store.tracks.get() || {};
   const examples = { core: catalog.coreKnowledgeExample || '', skills: Object.fromEntries(Object.entries(catalog.credentials || {}).map(([k, v]) => [k, v.skillsExample || ''])) };
-  res.json({ paths, links: publicLinks(s, preview), preview, examples, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
+  res.json({ paths, links: publicLinks(s, preview), preview, examples, tierNames: catalog.tierNames, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
 });
 
 // Track finder: recommend an NWIOI tier for a credential and price it.
@@ -64,11 +64,12 @@ app.post('/api/track-estimate', (req, res) => {
   const s = store.settings.get();
   const catalog = store.tracks.get();
   if (!catalog?.credentials?.[r.path]) return res.status(400).json({ error: 'No NWIOI tracks are configured for this credential yet.' });
-  const m = b.modular && typeof b.modular === 'object' ? b.modular : {};
+  const m = b.alaCarte && typeof b.alaCarte === 'object' ? b.alaCarte : {};
+  const a = b.additional && typeof b.additional === 'object' ? b.additional : {};
   const result = trackEstimate(catalog, r, {
     core: val(b.core), skills: val(b.skills), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
-    coreSar: typeof b.coreSar === 'boolean' ? b.coreSar : null,
-    modular: { coreCeus: m.coreCeus ?? null, skillsCeus: m.skillsCeus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
+    additional: { nwioiCeus: a.nwioiCeus ?? null, outsideCost: a.outsideCost ?? null },
+    alaCarte: { coreCeus: m.coreCeus ?? null, skillsCeus: m.skillsCeus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
   }, { preview: isPreview(req), links: { booking: s.schedulingUrl, contact: s.contactUrl } });
   res.json(result);
 });

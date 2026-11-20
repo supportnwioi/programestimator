@@ -1,107 +1,113 @@
-# Website copy changes to align nwioi.com with the track finder
+# Website copy for the two-tier offer (draft for NWIOI approval)
 
-Reviewed 2026-11-20:
+Pages reviewed 2026-11-20:
 - https://www.nwioi.com/aasect-certification
 - https://www.nwioi.com/compare-certification-tracks
 - https://www.nwioi.com/sex-education-program
 
-Everything below is draft copy for NWIOI to approve. "Proposed" figures are the preview prices in the track finder, and none are approved yet.
+Everything below is draft copy. None of the prices are marked approved in the calculator yet.
 
-## Site-wide
+## Tier names
 
-**Calculator link.** Add a button **Find my track & see tuition** near each tier summary and in the AASECT Certification menu. Use this supporting line under it:
+Use these two names everywhere: on the site, in the calculator and in the comparison.
 
-> See which NWIOI track might fit, what's included, and what you'd pay NWIOI — in about a minute. No email required.
+- **Tier I · Core Program**
+- **Tier II · À La Carte**
 
-**Tier names.** The AASECT Certification page says "Tier III Modular Track". The Compare page says "Tier III: Flexible" and "Flexible Certification Options". Use **Tier I · Comprehensive**, **Tier II · Core**, **Tier III · Modular** everywhere.
+Remove "Tier I Comprehensive", "Tier II Core", "Tier III Modular" and "Tier III: Flexible". Remove the 150-CEU Comprehensive package from the student-facing pages.
 
-**Booking link.** "Schedule Free Admissions Call" points to three places:
-- `https://student.nwioi.com/inquire`
-- `https://student.nwioi.com/`
-- `https://www.nwioi.com/nwioi-application`
+## Calculator link
 
-Pick one, and set it as the admissions scheduling URL under Admin → Links & internal rates.
+Add a button **See my tuition & how my training counts** near each tier summary and in the AASECT Certification menu. Supporting line:
 
-**Who decides.** Wherever tuition appears, add:
+> Choose your credential to see Core Program tuition, then see how your prior training could count. No email required.
 
-> NWIOI provides training. AASECT makes certification decisions.
+## Prior-training section (use on the AASECT Certification page and in the calculator)
 
-## AASECT Certification page
+> **See how far your prior training can take you.**
+> NWIOI Core includes 99 CEUs, supervision for your credential, and SAR. Graduate coursework and continuing education you've already completed may cover some or all of the remaining education. If you need additional courses, you can choose from the NWIOI library or learn with other institutes. We encourage you to learn from a range of educators and perspectives, and we'll help you find courses that fit the areas you still need.
+> **[Review my prior training]**  [Explore the NWIOI course library]  [Book a free admissions call]
+> *Additional NWIOI courses depend on current availability.*
 
-**Intro.** After "...NWIOI provides a structured yet flexible path forward.", add:
+Next to any combined estimate:
 
-> NWIOI offers tracks for each AASECT credential — Sex Therapist, Sexuality Counselor, and Sexuality Educator. Your credential sets the education and supervision you need: 90 hours of Core Knowledge Areas, 60 hours of credential-specific skills training, supervision, and a Sexuality Attitude Reassessment (SAR). Your NWIOI track determines what you complete with us. **[Find my track & see tuition]**
+> This is a planning estimate. We'll review your prior training and coursework options together and confirm your NWIOI tuition before you enroll.
 
-**Tier I.** Replace "150 CEUs • 50 Supervision Hours • SAR Included" with:
+## Tier I · Core Program
 
-> 150 CEUs (90 core knowledge + 60 skills training for your credential) • Supervision for your credential • SAR included
-> Supervision depends on your credential. Sex Therapist: 26 individual and 24 group hours over at least 18 months. Sexuality Counselor: 15 individual and 15 group hours over at least 12 months. Sexuality Educator: 5 individual hours with your primary supervisor and 20 group hours over at least 9 months.
+> **Tier I · Core Program**
+> 99 CEUs of NWIOI coursework • Supervision for your credential • SAR included
+> Your credential calls for 150 education hours (90 Core Knowledge Areas + 60 credential-specific skills training). Core includes 99 CEUs. Your prior graduate coursework and continuing education may cover the rest. If not, you can take additional courses with NWIOI or another institute.
 
-**Tier II.** Replace the heading and first sentence with:
+| Credential | Standard NWIOI tuition | Pay in full · Save 7% | Supervision included |
+|---|---:|---:|---|
+| Sex Therapist | $8,200 | $7,626.00 | 26 individual + 24 group hours, at least 18 months |
+| Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours, at least 12 months |
+| Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours, at least 9 months |
 
-> Tier II · Core — Sex Therapist
-> 99 CEUs • 50 Supervision Hours
-> Core is currently offered for the Sex Therapist credential. It's designed for clinicians whose prior education may cover about 51 hours of the education requirement and who want NWIOI's full supervision package. Admissions reviews your prior training with you to confirm the fit and your tuition before you enroll.
+> SAR is included in every Core price. If you've already completed a SAR, your tuition stays the same.
+> **Explore scholarship and equity rates**
 
-**Tier III.** Keep the name "Modular Track" and add:
+For Sexuality Educators, add:
 
-> Plan your Modular path in the track finder: choose the core knowledge and skills training CEUs you still need, add a SAR or NWIOI supervision, or work with an outside supervisor.
+> Design and deliver a sexuality education program with feedback from an AASECT Certified Sexuality Educator Supervisor.
+
+## Tier II · À La Carte
+
+> **Tier II · À La Carte**
+> Choose individual courses, supervision, or SAR as you need them. Work with an NWIOI supervisor, or with an outside supervisor whom you pay separately. **[See my tuition & how my training counts]** to get one estimated NWIOI total for what you'd buy.
+
+**Current site prices.** The current site lists À La Carte unit prices: $195/hour individual supervision and $200 per 3-hour group session. The calculator deliberately hides unit prices. Decide whether the website should keep showing them, since visitors could rebuild the calculator's math from them.
 
 ## Compare Certification Tracks page
 
-**Table.**
-- Rename "Tier III: Flexible" to "Tier III: Modular".
-- Supervision row: replace "50 hours included" with "Included — 25 to 50 hours depending on your credential".
-- Add a "Credentials" row: Tier I = all three; Tier II = Sex Therapist; Tier III = all three.
+Replace the three-column table with two columns.
 
-**Tier II heading.** Change "Core Certification Track" to "Core Certification Track (Sex Therapist)".
-
-**Older figures that conflict with the proposed offers.** Remove or update each of these:
-
-| Current site | Conflict | Proposed (draft) |
+| | Tier I · Core Program | Tier II · À La Carte |
 |---|---|---|
-| Tier I standard tuition **$10,950** | One price for all credentials | Sex Therapist $8,500 · Counselor $7,950 · Educator $7,250 |
-| Tier I Pay in Full (7% savings) **$10,183** | Based on the old price | $7,905.00 · $7,393.50 · $6,742.50 |
-| Tier I 12-month plan **$11,278** ($939/mo); 24-month plan **$11,607** ($483/mo) | Based on the old price | Recalculate from approved prices, or remove until approved |
-| Tier II standard tuition **$9,500** | Old price | Sex Therapist Core $7,350 (draft) |
-| Tier II Pay in Full **$8,835** | Old price | $6,835.50 (draft) |
-| Tier II 12-month plan **$9,785** ($815/mo); 24-month plan **$10,070** ($419/mo) | Old price | Recalculate or remove |
-| Tier II "SAR Add-On: **$850+**" | Different SAR price | SAR add-on $650 (full price, not discounted) |
-| Tier I/II "**50 supervision hours** included" | True for Sex Therapist only | 25 to 50 hours depending on credential |
-| Tier III "SAR Add-On: Priced individually" | No price shown | $650 if needed |
-| Tier III "1:1 Supervision **$195/hour**", "Group Supervision **$200 per 3-hour session**" | Shown as if they apply to every credential | Confirm per credential; keep only if they apply to all |
+| Education | 99 CEUs included | Courses you choose |
+| Supervision | Included for your credential | NWIOI or outside, as needed |
+| SAR | Included | Add if needed |
+| Price | Fixed tuition by credential | One estimate for what you buy |
+| Pay in full · Save 7% | Yes | No |
 
-**Tuition blocks.** Until prices are approved, replace each tuition block with:
+**Outdated figures to remove.**
 
-> Tuition depends on your credential. **[Find my track & see tuition]** to see standard NWIOI tuition, pay-in-full savings, and what's included.
+| Current site | Replace with |
+|---|---|
+| Tier I $10,950; Pay in full $10,183; 12- and 24-month plans | Core tuition by credential (table above); recalculate the plans or remove them until approved |
+| Tier II $9,500; Pay in full $8,835; plans; "SAR Add-On $850+" | Remove (SAR is now included in Core) |
+| "50 supervision hours included" | "Supervision for your credential (25–50 hours)" |
+| "Tier III: Flexible" / "Modular Track" | Tier II · À La Carte |
 
-Once prices are approved:
+**Scholarship.** Replace "Contact us for scholarship and equity rates" with:
 
-> **Standard NWIOI tuition:** $8,500 (Sex Therapist) · $7,950 (Sexuality Counselor) · $7,250 (Sexuality Educator)
-> **Pay in full · Save 7%:** $7,905.00 · $7,393.50 · $6,742.50
-
-**Scholarship.** Replace "Contact us for scholarship and equity rates." with:
-
-> **FIELD Growth Scholarship** — NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need. **[View scholarship application]** **[Ask about equity rates]**
+> **FIELD Growth Scholarship.** NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need. Awards, and how they combine with pay in full, are subject to NWIOI review. **[View scholarship application]** **[Ask about equity rates]**
 
 Link the application to `https://forms.wix.com/f/7167298250691576552`.
 
 ## Sex Education Program page
 
-This page currently reads as clinical sexology training for healthcare providers.
-- It says "we've intentionally chosen not to offer a comprehensive program", which contradicts Tier I · Comprehensive.
-- It lists "TOP5" pricing: **$8,441.25** for Sex Therapist and **$7,263.75** for Sex Counselor, with Fall/Spring Advanced classes (75 + 24 CEUs) and a "51 CEU" gap.
-- Its "Optional CME Add On: $450" isn't part of the proposed offers.
+The page's existing "Fall/Spring Advanced classes (75 + 24 CEUs)" and "51 CEU gap" already match the 99-CEU Core model. Fold that page into **Tier I · Core Program**, and:
+- Remove the old TOP5 prices ($8,441.25 / $7,263.75).
+- Replace "we've intentionally chosen not to offer a comprehensive program" with the prior-training section above.
+- Use "Sexuality Counselor", not "Sex Counselor".
+- Remove the "Optional CME Add On: $450" unless it's still offered.
 
-**Recommendation.** Retire the page, or rename it (for example, "Clinical Sexology Education (TOP5)") and add:
+## Booking link
 
-> These programs are now part of NWIOI's certification tracks. **[Compare tracks]** **[Find my track & see tuition]**
+"Schedule Free Admissions Call" currently points to three places:
+- student.nwioi.com/inquire
+- student.nwioi.com
+- nwioi.com/nwioi-application
 
-**Educator page.** Give the Sexuality Educator pathway its own page or section:
+Pick one, and set it under Admin → Links.
 
-> **Sexuality Educator Certification Track**
-> For teachers, health educators, trainers, and community educators working toward AASECT certification as a Sexuality Educator. Complete 90 hours of Core Knowledge Areas and 60 hours of Sexuality Education Skills Training, and **design and deliver a sexuality education program with feedback from an AASECT Certified Sexuality Educator Supervisor**. Supervision includes five individual hours with your primary supervisor and 20 group hours in ten two-hour sessions, over at least nine months. SAR is included in Tier I · Comprehensive.
-> **Standard NWIOI tuition:** $7,250 · **Pay in full · Save 7%:** $6,742.50 *(proposed)*
-> **[Find my track & see tuition]**  **[Book a free admissions call]**
+## To confirm before publishing
 
-**Small fixes.** Use the credential name "Sexuality Counselor", not "Sex Counselor". Keep the FIELD Growth Scholarship description consistent with the copy above.
+1. **Prices.** Approve the three Core tuitions, pay in full, the $35/CEU planning rate, and the À La Carte rates. All are `draft` in `config/tracks.json`.
+2. **Curriculum mapping.** For each credential, how the 99 Core CEUs split between CKAs and skills training. Until it's set, the calculator uses the 51-hour gap and labels it a rough planning estimate.
+3. **Course library URL.** `library.url` is empty, so "Explore the NWIOI course library" shows "link coming soon".
+4. **Booking, enrollment, supervisors and sample-weekend links.** These are placeholders or empty.
+5. **Savings rule.** Savings show only when À La Carte group sessions (3 hours) divide evenly into Core's group hours. So Sex Therapist (save $2,585) and Sexuality Counselor (save $590) show savings, and Sexuality Educator (20 group hours) doesn't. Confirm this, or set an Educator-specific group session length.
+6. **Scholarship form.** Confirm that the form at the link above is still current.

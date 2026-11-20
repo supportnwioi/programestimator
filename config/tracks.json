@@ -1,33 +1,51 @@
 {
-  "_about": "NWIOI track catalog: what each credential's tiers include and cost. status 'approved' = shown to the public; 'draft' = shown only in preview (local preview or a signed-in admin). Credentials (AASECT) set the requirements; tiers are what someone buys from NWIOI.",
-  "version": "2026-11-20-preview-2",
+  "_about": "NWIOI track catalog. Tier I · Core Program: a fixed package (99 CEUs + supervision for the credential + SAR). Tier II · À La Carte: individual courses, supervision and SAR. status 'approved' = shown to the public; 'draft' = preview only (signed-in admin or NWIOI_PREVIEW=1).",
+  "version": "2026-11-20-two-tier-preview",
   "tierNames": {
-    "comprehensive": "Tier I · Comprehensive",
-    "core": "Tier II · Core",
-    "modular": "Tier III · Modular"
+    "core": "Tier I · Core Program",
+    "alaCarte": "Tier II · À La Carte"
   },
   "recommendation": {
     "modularWhenPriorSupervisionShareAtLeast": 0.2,
-    "_note": "If someone has already done at least this share of the credential's supervision target, they no longer need a full supervision package, so Modular is recommended."
+    "_note": "If someone has already done at least this share of the credential's supervision target, they no longer need a full supervision package, so À La Carte is recommended."
   },
+  "payInFull": {
+    "rate": 0.07,
+    "status": "draft",
+    "tiers": [
+      "core"
+    ],
+    "appliesToAddOns": false,
+    "_note": "Pay in full: Core package tuition x (1 - rate), rounded to the cent. Not applied to additional coursework or À La Carte."
+  },
+  "planningRate": {
+    "perCeu": 35,
+    "status": "draft",
+    "_note": "Planning rate for additional NWIOI coursework beyond the 99 Core CEUs. Additional courses depend on current availability."
+  },
+  "library": {
+    "url": "",
+    "note": "Additional NWIOI courses depend on current availability.",
+    "_note": "Set url to the NWIOI course library page (for example https://www.nwioi.com/challenges once confirmed)."
+  },
+  "scholarship": {
+    "title": "FIELD Growth Scholarship",
+    "copy": "NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need.",
+    "applicationUrl": "https://forms.wix.com/f/7167298250691576552",
+    "status": "approved",
+    "_note": "Award amounts and whether they combine with pay-in-full savings are decided by NWIOI through the scholarship process, not the calculator."
+  },
+  "coreKnowledgeExample": "For example, a human sexuality course or a training on sexual development.",
   "credentials": {
     "sex_therapist": {
-      "comprehensive": {
+      "skillsExample": "For example, a training on sensate focus or on assessing and treating sexual pain.",
+      "core": {
         "status": "draft",
-        "tuition": 8500,
+        "tuition": 8200,
+        "ceus": 99,
         "includesSar": true,
-        "curriculum": [
-          {
-            "name": "Core knowledge (shared across all three credentials)",
-            "ceus": 90,
-            "requirement": "core"
-          },
-          {
-            "name": "Sex therapy skills training",
-            "ceus": 60,
-            "requirement": "training"
-          }
-        ],
+        "curriculumMapping": null,
+        "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
         "supervision": {
           "individualHours": 26,
           "groupHours": 24,
@@ -39,8 +57,6 @@
         "lead": null,
         "highlights": [
           "Live intensives plus self-paced coursework",
-          "Small-cohort supervision groups",
-          "SAR included",
           "Faculty mentorship throughout"
         ],
         "paymentPlans": [],
@@ -50,32 +66,7 @@
           "sampleWeekend": ""
         }
       },
-      "core": {
-        "defined": true,
-        "status": "draft",
-        "tuition": 7350,
-        "sarAddOn": 650,
-        "ceus": 99,
-        "supervisionHours": 50,
-        "supervision": {
-          "individualHours": 26,
-          "groupHours": 24,
-          "groupSessions": 12,
-          "groupSessionHours": 2,
-          "description": "26 individual hours and 24 group hours in twelve two-hour sessions"
-        },
-        "fitCeus": 51,
-        "highlights": [
-          "99 CEUs of NWIOI coursework, including the live intensives",
-          "Your prior education may cover the remaining 51 CEUs",
-          "Full supervision package"
-        ],
-        "paymentPlans": [],
-        "links": {
-          "apply": ""
-        }
-      },
-      "modular": {
+      "alaCarte": {
         "ceuRate": {
           "amount": 35,
           "status": "draft"
@@ -93,26 +84,17 @@
         "links": {
           "courses": ""
         }
-      },
-      "skillsExample": "For example, a training on sensate focus or on assessing and treating sexual pain."
+      }
     },
     "sexuality_counselor": {
-      "comprehensive": {
+      "skillsExample": "For example, a training on counseling clients about sexual concerns or working with specific populations.",
+      "core": {
         "status": "draft",
-        "tuition": 7950,
+        "tuition": 7450,
+        "ceus": 99,
         "includesSar": true,
-        "curriculum": [
-          {
-            "name": "Core knowledge (shared across all three credentials)",
-            "ceus": 90,
-            "requirement": "core"
-          },
-          {
-            "name": "Sexuality counseling skills training",
-            "ceus": 60,
-            "requirement": "training"
-          }
-        ],
+        "curriculumMapping": null,
+        "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
         "supervision": {
           "individualHours": 15,
           "groupHours": 15,
@@ -125,8 +107,6 @@
         "lead": null,
         "highlights": [
           "Live intensives plus self-paced coursework",
-          "Small-group supervision (three supervisees)",
-          "SAR included",
           "Faculty mentorship throughout"
         ],
         "paymentPlans": [],
@@ -136,10 +116,7 @@
           "sampleWeekend": ""
         }
       },
-      "core": {
-        "defined": false
-      },
-      "modular": {
+      "alaCarte": {
         "ceuRate": {
           "amount": 35,
           "status": "draft"
@@ -157,26 +134,17 @@
         "links": {
           "courses": ""
         }
-      },
-      "skillsExample": "For example, a training on counseling clients about sexual concerns or working with specific populations."
+      }
     },
     "sexuality_educator": {
-      "comprehensive": {
+      "skillsExample": "For example, a training on designing a sexuality education curriculum or facilitating groups.",
+      "core": {
         "status": "draft",
-        "tuition": 7250,
+        "tuition": 6950,
+        "ceus": 99,
         "includesSar": true,
-        "curriculum": [
-          {
-            "name": "Core knowledge (shared across all three credentials)",
-            "ceus": 90,
-            "requirement": "core"
-          },
-          {
-            "name": "Sexuality education skills training",
-            "ceus": 60,
-            "requirement": "training"
-          }
-        ],
+        "curriculumMapping": null,
+        "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
         "supervision": {
           "individualHours": 5,
           "groupHours": 20,
@@ -188,8 +156,6 @@
         "lead": "Design and deliver a sexuality education program with feedback from an AASECT Certified Sexuality Educator Supervisor.",
         "highlights": [
           "Live intensives plus self-paced coursework",
-          "Group supervision focused on your teaching",
-          "SAR included",
           "Faculty mentorship throughout"
         ],
         "paymentPlans": [],
@@ -199,10 +165,7 @@
           "sampleWeekend": ""
         }
       },
-      "core": {
-        "defined": false
-      },
-      "modular": {
+      "alaCarte": {
         "ceuRate": {
           "amount": 35,
           "status": "draft"
@@ -220,26 +183,7 @@
         "links": {
           "courses": ""
         }
-      },
-      "skillsExample": "For example, a training on designing a sexuality education curriculum or facilitating groups."
+      }
     }
-  },
-  "payInFull": {
-    "rate": 0.07,
-    "status": "draft",
-    "tiers": [
-      "comprehensive",
-      "core"
-    ],
-    "appliesToAddOns": false,
-    "_note": "Pay in full: package tuition x (1 - rate), rounded to the cent. Add-ons (e.g. Core SAR) stay at full price. Modular is excluded."
-  },
-  "scholarship": {
-    "title": "FIELD Growth Scholarship",
-    "copy": "NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need.",
-    "applicationUrl": "https://forms.wix.com/f/7167298250691576552",
-    "status": "approved",
-    "_note": "Award amounts and whether they combine with pay-in-full savings are decided by NWIOI through the scholarship process, not the calculator."
-  },
-  "coreKnowledgeExample": "For example, a human sexuality course or a training on sexual development."
+  }
 }

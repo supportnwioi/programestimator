@@ -1,22 +1,32 @@
-// Track finder: credential → a few answers → one recommended NWIOI tier with
-// standard tuition (or a Modular estimate), what's included, and one next step.
-// All pricing comes from POST /api/track-estimate (server-side catalog).
+// Track finder: credential → Tier I · Core Program tuition right away → optional
+// prior-training questions that show what may already be covered, what Core
+// includes, and what may still be needed. Tier II · À La Carte is one total with
+// a quantities-only list. All pricing comes from POST /api/track-estimate.
 const $main = document.getElementById('finder');
 const $bar = document.getElementById('price-bar');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const PLANNING_COPY = 'This is a planning estimate. You and NWIOI admissions will review your prior training, the track that fits your goals, and any scholarship or equity options. We’ll confirm your final NWIOI cost together before you enroll.';
+const PLANNING_COPY = 'This is a planning estimate. We’ll review your prior training and coursework options together and confirm your NWIOI tuition before you enroll.';
+const PRIOR_COPY = 'See how far your prior training can take you. NWIOI Core includes 99 CEUs, supervision for your credential, and SAR. Graduate coursework and continuing education you’ve already completed may cover some or all of the remaining education. If you need additional courses, you can choose from the NWIOI library or learn with other institutes. We encourage you to learn from a range of educators and perspectives, and we’ll help you find courses that fit the areas you still need.';
+const STORE_KEY = 'nwioi-finder-v3';
 
 let config = null;
 let result = null;
-const freshModular = () => ({ coreCeus: null, skillsCeus: null, sar: null, individualHours: null, groupSessions: null });
-const fresh = () => ({ path: null, core: null, skills: null, supervision: null, sar: null, where: null, coreSar: null, modular: freshModular() });
+const freshAla = () => ({ coreCeus: null, skillsCeus: null, sar: null, individualHours: null, groupSessions: null });
+const freshAdditional = () => ({ nwioiCeus: null, outsideCost: null });
+const fresh = () => ({ path: null, showPrior: false, core: null, skills: null, supervision: null, sar: null, where: null, additional: freshAdditional(), alaCarte: freshAla() });
 let state = fresh();
 
 const deciding = () => state.path === 'deciding';
 const pathCfg = () => config.paths.find((p) => p.path === state.path);
-function load() { try { const s = JSON.parse(sessionStorage.getItem('nwioi-finder-v2')); if (s) state = { ...fresh(), ...s, modular: { ...freshModular(), ...(s.modular || {}) } }; } catch { /* storage unavailable */ } }
-function save() { try { sessionStorage.setItem('nwioi-finder-v2', JSON.stringify(state)); } catch { /* storage unavailable */ } }
+const anyAnswer = () => ['core', 'skills', 'supervision', 'sar', 'where'].some((k) => state[k] !== null && state[k] !== undefined);
+function load() {
+  try {
+    const s = JSON.parse(sessionStorage.getItem(STORE_KEY));
+    if (s) state = { ...fresh(), ...s, additional: { ...freshAdditional(), ...(s.additional || {}) }, alaCarte: { ...freshAla(), ...(s.alaCarte || {}) } };
+  } catch { /* storage unavailable */ }
+}
+function save() { try { sessionStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* storage unavailable */ } }
 
 // ------------------------------------------------------------------ links
 function linkHtml(link, label, cls = '', testid = '') {
@@ -62,13 +72,22 @@ const radioGroup = (name, legend, options, value) => `
     <div class="seg">${options.map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${value === k ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
   </fieldset>`;
 
+function priorIntro() {
+  return `
+  <section class="card prior-intro" data-testid="prior-intro">
+    <h2 class="q-group">See how far your prior training can take you</h2>
+    <p class="small">${esc(PRIOR_COPY.replace(/^See how far your prior training can take you\. /, ''))}</p>
+    ${state.showPrior ? '' : '<button type="button" class="btn primary" data-show-prior data-testid="show-prior">See how your prior training could count</button>'}
+  </section>`;
+}
+
 function questions(p) {
   const b = p.benchmarks;
   const ex = config.examples || {};
   return `
-  <section class="card">
-    <h2 class="q-group">Education you’ve completed</h2>
-    <p class="small muted">Rough estimates of graduate coursework, training, and continuing education that might apply. The ${esc(p.pathName)} credential calls for ${b.core} core knowledge hours and ${b.skills} skills training hours. Extra hours in one category don’t count toward the other.</p>
+  <section class="card" id="prior-questions">
+    <h2 class="q-group">See how your prior training could count</h2>
+    <p class="small muted">Rough estimates of graduate coursework, training, and continuing education you’ve completed. The ${esc(p.pathName)} credential calls for ${b.core} core knowledge hours and ${b.skills} skills training hours. Extra hours in one category don’t count toward the other.</p>
     ${hoursQuestion('core', 'Core Knowledge Areas (CKAs)', `Up to ${b.core} hours. ${esc(ex.core || '')}`, b.core, 'core knowledge')}
     ${hoursQuestion('skills', b.trainingLabel, `Up to ${b.skills} hours. ${esc(ex.skills?.[p.path] || '')}`, b.skills, 'skills training')}
     <details class="credits">
@@ -87,32 +106,29 @@ function questions(p) {
     </details>
   </section>
   <section class="card">
+    <h2 class="q-group">Supervision and SAR</h2>
+    <p class="small muted">These help us show whether ${esc(config.tierNames?.alaCarte || 'À La Carte')} might fit better.</p>
     ${hoursQuestion('supervision', 'Supervision completed toward this credential',
       `Up to ${b.supervision} hours with an ${esc(p.terms.supervisorTitle)}.`,
       b.supervision, 'standard target')}
-  </section>
-  <section class="card">
     ${radioGroup('sar', 'Have you completed a Sexuality Attitude Reassessment (SAR)?', [['yes', 'Yes'], ['no', 'No'], ['unsure', 'I’m not sure']], state.sar)}
-    ${state.sar === 'yes' ? '<p class="small muted">Thanks. Admissions can confirm whether a previously completed SAR meets the requirement.</p>' : ''}
-  </section>
-  <section class="card">
+    ${state.sar === 'yes' ? '<p class="small muted">Thanks. SAR is included in Core either way, and Core tuition stays the same. Admissions can confirm whether your SAR meets the requirement.</p>' : ''}
     ${radioGroup('where', 'Where would you like to do your supervision?', [['nwioi', 'With NWIOI'], ['outside', 'With an outside supervisor'], ['help', 'Help me decide']], state.where)}
   </section>`;
 }
 
-// ------------------------------------------------------------------ result
+// ------------------------------------------------------------------ shared pieces
 function priceBlock(t, { big = false } = {}) {
   const p = t.price;
   const id = big ? 'rec-price' : `price-${t.key}`;
   if (p.amount === null || p.amount === undefined) {
     return `<p class="${big ? 'range personal' : 'price-sm'}" data-testid="${id}">${esc(p.confirmText)}</p>`;
   }
-  const partial = p.complete === false ? ' <span class="small muted">so far</span>' : '';
   const pif = p.payInFull
     ? `<p class="pif" data-testid="${big ? 'rec-pif' : `pif-${t.key}`}"><strong>Pay in full · Save ${p.payInFull.percent}%:</strong> ${esc(p.payInFull.display)} <span class="small muted">(you save ${esc(p.payInFull.savings)})</span>${p.payInFull.draft ? ' <span class="chip warn">draft</span>' : ''}</p>`
     : '';
   return `<p class="price-label-sm small muted">${esc(p.label)}</p>
-    <p class="${big ? 'range' : 'price-sm'}" data-testid="${id}">${esc(p.display)}${partial}</p>
+    <p class="${big ? 'range' : 'price-sm'}" data-testid="${id}">${esc(p.display)}</p>
     ${pif}
     ${t.paymentPlans?.length ? `<ul class="small plans">${t.paymentPlans.map((x) => `<li>or ${esc(x.text)}${x.draft ? ' <span class="chip warn">draft</span>' : ''}</li>`).join('')}</ul>` : ''}
     ${p.draft ? '<p><span class="chip warn">Draft pricing · preview only, pending NWIOI approval</span></p>' : ''}`;
@@ -124,165 +140,217 @@ function scholarshipBlock() {
   return `<details class="scholarship" data-testid="scholarship">
     <summary>Explore scholarship and equity rates</summary>
     <p class="small"><strong>${esc(s.title)}</strong><br>${esc(s.copy)}</p>
+    <p class="small muted">Scholarship awards, and whether they combine with pay-in-full savings, are subject to NWIOI review.</p>
     <div class="row">${linkHtml(s.application, 'View scholarship application', 'btn', 'scholarship-apply')} ${linkHtml(s.equity, 'Ask about equity rates', 'small', 'equity')}</div>
   </details>`;
-}
-
-function ctaHtml(t, primary) {
-  const cls = primary ? 'btn primary big' : 'btn';
-  const id = primary ? 'primary-cta' : `cta-${t.key}`;
-  const label = t.cta.viaAdmissions && t.key === 'comprehensive' ? 'Explore enrollment with admissions' : t.cta.label;
-  let html = linkHtml(t.cta.link, label, cls, id);
-  if (t.secondary) html += ` ${linkHtml(t.secondary.link, t.secondary.label, primary ? 'btn' : 'small', primary ? 'secondary-cta' : '')}`;
-  for (const x of t.extraLinks || []) html += ` ${linkHtml(x.link, x.label, 'small')}`;
-  return `<div class="cta">${html}</div>`;
 }
 
 // Expandable sections keep their open/closed state across live updates.
 const openState = {};
 const det = (id, summary, body, testid = '') => `<details id="${id}" class="expand"${openState[id] ? ' open' : ''}${testid ? ` data-testid="${testid}"` : ''}><summary>${summary}</summary>${body}</details>`;
 const itemList = (items, testid) => `<ul class="item-list" data-testid="${testid}">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function modularControls(t) {
+// ------------------------------------------------------------------ prior training summary (under Tier I)
+function priorSummary() {
+  const pr = result.prior;
+  const b = result.benchmarks;
+  const trainingLower = b.trainingLabel.toLowerCase();
+  const roughChip = pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : '';
+  const reviewNote = '<p class="small muted">Admissions reviews the topics and live hours of your prior training to confirm what counts.</p>';
+  let covered, need, cost = '';
+
+  if (pr.state === 'unresolved') {
+    const parts = [];
+    if (pr.knownCore !== null) parts.push(`${pr.knownCore} core knowledge hours`);
+    if (pr.knownSkills !== null) parts.push(`${pr.knownSkills} ${trainingLower} hours`);
+    covered = `<p>${parts.length ? `You’ve told us about ${esc(parts.join(' and '))}.` : 'Not answered yet.'} ${pr.unsure ? 'Some of your training still needs review, and we’ll go through it with you.' : 'Answer both education questions to see this.'}</p>`;
+    need = `<p data-testid="prior-need">Still to be reviewed.${pr.rough ? ` Core covers ${pr.nwioiCeus} of the ${b.education} education hours, so up to ${pr.gapBeforePrior} more may be needed if none of your prior training counts.` : ''}</p>`;
+  } else {
+    const overlap = pr.overlap > 0
+      ? `<p class="small muted" data-testid="prior-overlap">${plural(pr.overlap, 'hour')} you reported overlap${pr.overlap === 1 ? 's' : ''} with what Core already covers or go${pr.overlap === 1 ? 'es' : ''} beyond the requirement, so ${pr.overlap === 1 ? 'it isn’t' : 'they aren’t'} counted twice.</p>` : '';
+    covered = `<p data-testid="prior-covered">About <strong>${plural(pr.counted, 'hour')}</strong> of your prior training may count toward the rest of the education requirement.</p>${overlap}`;
+    if (pr.remaining === 0) {
+      need = '<p data-testid="prior-need">Your prior training may cover the rest of the education requirement. No additional coursework estimated.</p>';
+    } else {
+      const split = pr.mappingKnown ? ` <span class="small">(${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})</span>` : '';
+      need = `<p data-testid="prior-need">About <strong>${plural(pr.remaining, 'more CEU')}</strong>${split}</p>`;
+      const max = pr.remaining;
+      cost = `
+      <div class="additional">
+        <div class="grid2">
+          <div class="field"><label for="add-nwioi">CEUs you’d take with NWIOI</label>
+            <input type="number" id="add-nwioi" data-add="nwioiCeus" min="0" max="${max}" step="1" inputmode="numeric" value="${pr.nwioiAdditionalCeus}">
+            <span class="small muted">${esc(pr.libraryNote || '')}</span></div>
+          ${pr.outsideCeus > 0 ? `<div class="field"><label for="add-outside">Expected cost of your other ${plural(pr.outsideCeus, 'CEU')} (optional)</label>
+            <input type="number" id="add-outside" data-add="outsideCost" min="0" step="1" inputmode="decimal" value="${pr.outsideCost ?? ''}" placeholder="$">
+            <span class="small muted">Other providers set their own prices.</span></div>` : ''}
+        </div>
+        <table class="math combined-table" data-testid="combined-table"><tbody>
+          <tr><td>NWIOI tuition · ${esc(result.tierNames.core)}</td><td class="amt">${esc(result.tracks.core.price.display || '—')}</td></tr>
+          ${pr.nwioiAdditionalCeus > 0 ? `<tr><td>Additional NWIOI coursework · ${plural(pr.nwioiAdditionalCeus, 'CEU')}</td><td class="amt" data-testid="additional-cost">${esc(pr.additional?.display || 'Confirm with admissions')}</td></tr>` : ''}
+          ${pr.outsideCeus > 0 ? `<tr><td>Coursework with other institutes · ${plural(pr.outsideCeus, 'CEU')}</td><td class="amt">${pr.outsideCost !== null ? esc('$' + Math.round(pr.outsideCost).toLocaleString('en-US')) : '<span class="muted">Not included</span>'}</td></tr>` : ''}
+          ${pr.combined ? `<tr class="total"><td>Estimated combined cost${pr.combined.complete ? '' : ' <span class="small muted">(without other institutes)</span>'}</td><td class="amt" data-testid="combined-cost">${esc(pr.combined.display)}</td></tr>` : ''}
+        </tbody></table>
+        ${pr.combined ? `<p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>` : ''}
+      </div>`;
+    }
+  }
+  return `
+  <section class="prior-summary" data-testid="prior-summary" aria-live="polite">
+    <h3 class="small-h">How your prior training could count${roughChip}</h3>
+    <ol class="steps">
+      <li><strong>What you may already have covered</strong>${covered}</li>
+      <li><strong>What NWIOI includes</strong><p data-testid="prior-includes">${pr.nwioiCeus} CEUs of NWIOI coursework, plus supervision and SAR.</p></li>
+      <li><strong>What you may still need</strong>${need}</li>
+    </ol>
+    ${cost}
+    ${reviewNote}
+  </section>`;
+}
+
+// ------------------------------------------------------------------ À La Carte
+function alaControls(t) {
   const s = t.selection, sug = t.suggestion, u = t.units;
   const num = (id, key, label, max, hint) => `<div class="field"><label for="${id}">${esc(label)}</label>
-      <input type="number" id="${id}" data-mod="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
+      <input type="number" id="${id}" data-ala="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
       <span class="small muted">${hint}</span></div>`;
-  const sugText = (v, unsureMsg) => (v !== null ? `Suggested from your answers: ${v} remaining` : unsureMsg);
+  const sugText = (v) => (v !== null ? `Suggested from your answers: ${v} remaining` : 'Needs review. Choose a number or ask admissions.');
   const adjust = `
     <div class="grid2">
-      ${num('mod-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, sugText(sug.coreCeus, 'Needs review. Choose a number or ask admissions.'))}
-      ${num('mod-skills', 'skillsCeus', `${u.trainingLabel} CEUs`, result.benchmarks.skills, sugText(sug.skillsCeus, 'Needs review. Choose a number or ask admissions.'))}
+      ${num('ala-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, sugText(sug.coreCeus))}
+      ${num('ala-skills', 'skillsCeus', `${u.trainingLabel} CEUs`, result.benchmarks.skills, sugText(sug.skillsCeus))}
     </div>
     ${t.outsideSupervision ? '' : `<div class="grid2">
-      ${num('mod-ind', 'individualHours', 'Hours of individual supervision', null, 'One-to-one with an NWIOI supervisor')}
-      ${num('mod-grp', 'groupSessions', 'Group supervision sessions', null, `${u.groupSessionHours} hours each`)}
+      ${num('ala-ind', 'individualHours', 'Hours of individual supervision', null, 'One-to-one with an NWIOI supervisor')}
+      ${num('ala-grp', 'groupSessions', 'Group supervision sessions', null, `${u.groupSessionHours} hours each`)}
     </div>`}`;
   return `
   <div class="modular-controls">
-    ${t.sarOffer ? `<label class="small sar-offer" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)}</label>` : ''}
-    ${t.items.length ? det('mod-included', 'What’s included', itemList(t.items, 'modular-items'), 'modular-included') : ''}
-    ${det('mod-adjust', 'Change what you’d buy', adjust, 'modular-adjust')}
+    ${t.sarOffer ? `<label class="small sar-offer" style="font-weight:400"><input type="checkbox" data-ala="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)}</label>` : ''}
+    ${t.items.length ? det('ala-included', 'See what’s included', itemList(t.items, 'ala-items'), 'ala-included') : ''}
+    ${det('ala-adjust', 'Change what you’d buy', adjust, 'ala-adjust')}
   </div>`;
 }
 
-function coreSarToggle(t) {
-  if (t.key !== 'core' || t.price.amount === null || !t.price.sarOffered) return '';
-  return `<label class="small" style="font-weight:400"><input type="checkbox" data-core-sar ${t.price.sarIncluded ? 'checked' : ''}> Add SAR${t.price.sarAddOn ? ` for ${esc(t.price.sarAddOn)}` : ''}${state.sar === 'no' ? '' : ' if needed'}</label>`;
-}
-
-function trackCard(t, recommendedKey, controlsShownAbove) {
-  if (!t) {
-    return `<article class="track-card unavailable"><h3>${esc(result.tierNames.core)}</h3>
-      <p class="small">${esc(result.coreNotDefinedNote)}</p>
-      <div class="cta">${linkHtml(result.booking, 'Review my prior training', 'btn', 'cta-core')}</div></article>`;
-  }
-  const rec = t.key === recommendedKey;
-  return `<article class="track-card ${rec ? 'is-recommended' : ''}" data-track="${t.key}">
+function alaCard() {
+  const t = result.tracks.alaCarte;
+  const rec = result.recommended === 'alaCarte';
+  const p = t.price;
+  const known = p.amount !== null && p.amount !== undefined;
+  return `<article class="track-card ${rec ? 'is-recommended' : ''}" data-track="alaCarte">
     ${rec ? '<span class="chip ok">Recommended for you</span>' : ''}
     <h3>${esc(t.name)}</h3>
-    ${priceBlock(t)}
-    ${!(rec && controlsShownAbove) ? coreSarToggle(t) : ''}
-    ${t.key === 'modular' && !(rec && controlsShownAbove) ? modularControls(t) : ''}
-    ${t.notes?.length ? `<ul class="small notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    <p class="price-label-sm small muted">Estimated cost if purchased separately</p>
+    <p class="price-sm" data-testid="price-alaCarte">${esc(known ? p.display : p.confirmText)}${known && p.complete === false ? ' <span class="small muted">so far</span>' : ''}</p>
+    ${p.draft ? '<p><span class="chip warn">Draft pricing · preview only, pending NWIOI approval</span></p>' : ''}
+    ${t.basedOn ? `<p class="small muted" data-testid="based-on">${esc(t.basedOn)}</p>` : ''}
+    ${alaControls(t)}
+    ${t.notes?.length ? `<ul class="small notes" data-testid="ala-notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <ul class="small included">${t.included.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-    ${t.note ? `<p class="small">${esc(t.note)}</p>` : ''}
-    ${ctaHtml(t, false)}
+    <div class="cta">${linkHtml(t.cta.link, t.cta.label, 'btn', 'cta-alaCarte')} ${linkHtml(t.secondary.link, t.secondary.label, 'small')}</div>
+    ${result.library ? `<p class="small muted">${esc(result.prior.libraryNote || '')}</p>` : ''}
   </article>`;
 }
 
-// Package prices are fixed, so show the number that does move with the answers:
-// what buying only what's still needed (Modular) would cost.
-// Package prices are fixed, so show the number that does move with the answers:
-// what the same training would cost bought separately through Modular.
-function modularComparison(t) {
-  if (!t.price.fixed) return '';
-  const m = result.tracks.modular;
-  const note = t.key === 'core'
-    ? 'Core has a fixed tuition. If you’ve already completed most of your training, Modular may be a better fit.'
-    : 'Comprehensive has a fixed tuition. If you’ve already completed some training, Core or Modular may be a better fit.';
-  const fixedNote = `<p class="small muted" data-testid="fixed-note">${note}</p>`;
-  if (m.price.amount === null || m.price.amount === undefined) {
-    return `${fixedNote}<div class="compare-live" data-testid="modular-live"><span class="small">Estimated cost if purchased separately</span><strong class="small">${esc(m.price.confirmText || 'Answer the hours questions to see this estimate')}</strong></div>`;
-  }
-  const value = m.price.complete === false ? `${m.price.display} so far` : m.price.display;
-  return `${fixedNote}<div class="compare-live" data-testid="modular-live">
-      <span class="small">Estimated cost if purchased separately</span>
-      <strong data-testid="modular-live-price">${esc(value)}</strong>
-      ${m.basedOn ? `<p class="small muted based-on" data-testid="based-on">${esc(m.basedOn)}</p>` : ''}
-      ${m.items.length ? det('sep-included', 'See what’s included', itemList(m.items, 'separate-items'), 'separate-included') : ''}
-    </div>`;
+function coreCard() {
+  const t = result.tracks.core;
+  const rec = result.recommended === 'core';
+  const s = result.savings;
+  return `<article class="track-card ${rec ? 'is-recommended' : ''}" data-track="core">
+    ${rec ? '<span class="chip ok">Recommended for you</span>' : ''}
+    <h3>${esc(t.name)}</h3>
+    ${priceBlock(t)}
+    ${s ? `<p class="small savings" data-testid="savings"><strong>Save ${esc(s.display)}</strong> compared with buying the same items separately (${esc(s.separately)}).</p>
+      ${det('savings-items', 'Same items compared', itemList(s.items, 'savings-items'), 'savings-included')}` : ''}
+    <ul class="small included">${t.included.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <div class="cta">${linkHtml(t.cta.link, t.cta.label, 'btn', 'cta-core')}</div>
+  </article>`;
 }
 
+// ------------------------------------------------------------------ result panel (Tier I is the center)
 function resultPanel() {
-  if (!state.path) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Choose the credential you’re working toward to see what’s included and what you’d pay NWIOI.</p>`;
+  if (!state.path) return `<h2 class="price-label">Your NWIOI tuition</h2><p class="muted">Choose the credential you’re working toward to see Core Program tuition and what’s included.</p>`;
   if (deciding()) {
     return `<h2 class="price-label">Not sure which credential fits?</h2>
       <p>Sex therapist, sexuality counselor and sexuality educator credentials have different training and supervision requirements. In a free admissions call, we’ll talk about your background and goals, explain how each credential works, and help you choose a direction.</p>
       <div class="cta">${linkHtml(config.links.scheduling, 'Talk through my options', 'btn primary big', 'primary-cta')}</div>
       <p class="small muted">NWIOI provides training. AASECT makes certification decisions.</p>`;
   }
-  if (!result) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Loading…</p>`;
-  const key = result.startingPoint;
-  const t = result.tracks[key];
-  const heading = result.recommended
+  if (!result) return `<h2 class="price-label">Your NWIOI tuition</h2><p class="muted">Loading…</p>`;
+  const t = result.tracks.core;
+  const ala = result.tracks.alaCarte;
+  const alaRec = result.recommended === 'alaCarte';
+  const heading = result.recommended === 'core'
     ? `<span class="chip ok" data-testid="rec-chip">Recommended for you</span><p class="small muted" style="margin-top:6px">For the ${esc(result.pathName)} credential</p>`
-    : `<p class="small muted">The complete program for the ${esc(result.pathName)} credential</p>`;
+    : `<p class="small muted">For the ${esc(result.pathName)} credential</p>`;
+  const alaCallout = alaRec ? `
+    <div class="compare-live" data-testid="ala-callout">
+      <span class="chip ok">Recommended for you: ${esc(ala.name)}</span>
+      <span class="small">Estimated cost if purchased separately</span>
+      <strong data-testid="ala-live-price">${esc(ala.price.amount !== null && ala.price.amount !== undefined ? ala.price.display : ala.price.confirmText)}</strong>
+      <ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+      <a href="#compare" data-open-compare class="small">Compare both tiers</a>
+    </div>` : '';
   return `${heading}
     <h2 class="rec-name" data-testid="rec-name">${esc(t.name)}</h2>
     ${t.lead ? `<p class="lead">${esc(t.lead)}</p>` : ''}
     <div aria-live="polite" aria-atomic="true">${priceBlock(t, { big: true })}</div>
-    ${modularComparison(t)}
-    <p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>
-    ${coreSarToggle(t)}
-    ${t.key === 'modular' ? modularControls(t) : ''}
     ${scholarshipBlock()}
-    ${result.recommended ? `<h3 class="small-h">Why it fits</h3><ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
-    ${result.notes.length ? `<ul class="small notes" data-testid="notes">${result.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-    ${t.notes?.length && t.key === 'modular' ? `<ul class="small notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <h3 class="small-h">What’s included</h3>
-    <ul class="small included">${t.included.slice(0, 6).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-    ${t.key === 'core' ? `<p class="small">${esc(t.note)}</p>` : ''}
-    ${ctaHtml(t, true)}
+    <ul class="small included" data-testid="core-included">${t.included.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    ${alaCallout}
+    ${state.showPrior || anyAnswer() ? priorSummary() : `<p><button type="button" class="btn" data-show-prior>See how your prior training could count</button></p>`}
+    ${result.recommended === 'core' ? `<h3 class="small-h">Why it fits</h3><ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+    ${result.notes.length ? `<ul class="small notes" data-testid="notes">${result.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    <div class="cta">
+      ${linkHtml(t.cta.link, t.cta.label, 'btn primary big', 'primary-cta')}
+      ${linkHtml(t.secondary.link, t.secondary.label, 'btn', 'secondary-cta')}
+    </div>
+    <p class="small muted" data-testid="library-note">${esc(result.prior.libraryNote || '')}</p>
+    ${t.enroll ? `<p class="small">${linkHtml(t.enroll, 'Ready to enroll? Start your Core enrollment', 'small', 'enroll')}</p>` : ''}
+    ${t.extraLinks?.length ? `<p class="small">${t.extraLinks.map((x) => linkHtml(x.link, x.label, 'small')).join(' · ')}</p>` : ''}
     <p class="small muted">NWIOI provides training. AASECT makes certification decisions.</p>`;
 }
 
 function compareSection(openNow) {
   if (!result || deciding()) return '';
-  const { comprehensive, core, modular } = result.tracks;
-  const shown = result.startingPoint;
   return `<details id="compare" class="compare" ${openNow ? 'open' : ''}>
-    <summary><h2 id="compare-h">Compare tracks for the ${esc(result.pathName)} credential</h2></summary>
-    <p class="small muted">Comprehensive and Core are fixed package prices. Your answers change which track fits and the Modular estimate, not the package tuition.</p>
-    <div class="track-grid">${trackCard(comprehensive, result.recommended, shown === 'comprehensive')}${trackCard(core, result.recommended, shown === 'core')}${trackCard(modular, result.recommended, shown === 'modular')}</div>
+    <summary><h2 id="compare-h">Compare ${esc(result.tierNames.core)} and ${esc(result.tierNames.alaCarte)}</h2></summary>
+    <p class="small muted">${esc(result.tierNames.core)} has a fixed tuition that includes SAR. ${esc(result.tierNames.alaCarte)} lets you buy individual courses, supervision or SAR, so its estimate changes with what you choose.</p>
+    <div class="track-grid">${coreCard()}${alaCard()}</div>
   </details>`;
 }
 
 // The live number: pinned to the top of the screen, updates as answers change.
 let lastBarValue = null;
 function renderBar() {
-  let label = 'Standard NWIOI tuition', name = '', value = '—', sub = 'Choose a credential to see your track and price', valueClass = 'muted-value', draft = false;
+  let label = 'Standard NWIOI tuition', name = '', value = '—', sub = 'Choose a credential to see your tuition', valueClass = 'muted-value', draft = false;
   if (deciding()) {
     label = 'Not sure which credential?'; value = 'Let’s talk'; sub = 'A free admissions call can help you choose'; valueClass = '';
   } else if (state.path && result) {
-    const t = result.tracks[result.startingPoint];
+    const alaRec = result.recommended === 'alaCarte';
+    const t = alaRec ? result.tracks.alaCarte : result.tracks.core;
     const known = t.price.amount !== null && t.price.amount !== undefined;
     name = t.name;
-    label = known ? t.price.label : (result.recommended ? 'Recommended for you' : 'Complete program');
+    label = known ? (alaRec ? 'Estimated cost with NWIOI' : t.price.label) : 'Your NWIOI tuition';
     value = known ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
     valueClass = known ? '' : 'confirm-value';
-    const m = result.tracks.modular;
-    const modularAlt = t.price.fixed && m.price.amount !== null && m.price.amount !== undefined && m.price.complete !== false ? ` · If purchased separately: ${m.price.display}` : '';
-    sub = known && t.price.payInFull ? `Pay in full: ${t.price.payInFull.display}${modularAlt}` : known ? `Planning estimate${modularAlt}` : 'We’ll confirm your tuition';
+    const parts = [];
+    if (!alaRec && t.price.payInFull) parts.push(`Pay in full: ${t.price.payInFull.display}`);
+    const comb = result.prior?.combined;
+    if (!alaRec && comb && result.prior.remaining > 0) parts.push(`Estimated combined cost: ${comb.display}${comb.complete ? '' : '+'}`);
+    if (alaRec && known) parts.push('Planning estimate');
+    sub = parts.length ? parts.join(' · ') : known ? 'Planning estimate' : 'We’ll confirm your tuition';
     draft = Boolean(t.price.draft);
   } else if (state.path) sub = 'Updating…';
-  const changed = lastBarValue !== null && lastBarValue !== name + value;
-  lastBarValue = name + value;
+  const changed = lastBarValue !== null && lastBarValue !== name + value + sub;
+  lastBarValue = name + value + sub;
   $bar.innerHTML = `<div class="wrap estimate-inner">
       <div class="estimate-text" aria-live="polite" aria-atomic="true">
         <span class="estimate-label">${esc(label)}${name ? ` · <strong>${esc(name)}</strong>` : ''}${draft ? ' <span class="chip draft-chip">Draft</span>' : ''}</span>
         <span class="estimate-value ${valueClass}" data-testid="bar-price">${esc(value)}</span>
-        <span class="estimate-sub">${esc(sub)}</span>
+        <span class="estimate-sub" data-testid="bar-sub">${esc(sub)}</span>
       </div>
       <span class="bar-cta">${linkHtml(config.links.scheduling, 'Book a free admissions call', 'btn bar-btn', 'bar-book')}</span>
     </div>`;
@@ -299,19 +367,21 @@ function withFocus(fn) {
   fn();
   if (id) { const el = document.getElementById(id); if (el && el !== document.activeElement) el.focus(); }
 }
-let lastModularLive = null;
+const lastLive = {};
+function flashChanged(selector) {
+  const el = $main.querySelector(selector);
+  if (!el) return;
+  if (lastLive[selector] !== undefined && lastLive[selector] !== el.textContent) el.classList.add('flash');
+  lastLive[selector] = el.textContent;
+}
 function renderResult() {
   withFocus(() => {
     const aside = $main.querySelector('.quick-price');
     if (aside) aside.innerHTML = resultPanel();
-    const live = $main.querySelector('[data-testid="modular-live-price"]');
-    if (live) {
-      if (lastModularLive !== null && lastModularLive !== live.textContent) live.classList.add('flash');
-      lastModularLive = live.textContent;
-    }
     const cmp = $main.querySelector('#compare-wrap');
     const wasOpen = Boolean(cmp?.querySelector('#compare')?.open);
     if (cmp) cmp.innerHTML = compareSection(wasOpen);
+    for (const sel of ['[data-testid="combined-cost"]', '[data-testid="ala-live-price"]', '[data-testid="price-alaCarte"]']) flashChanged(sel);
   });
   renderBar();
 }
@@ -320,8 +390,8 @@ function render() {
   const p = state.path && !deciding() ? pathCfg() : null;
   $main.innerHTML = `
   <section class="intro">
-    <h1>Find the right NWIOI track for you</h1>
-    <p>Answer a few quick questions. We’ll show which NWIOI track might fit, what’s included, and what you’d pay NWIOI.</p>
+    <h1>Find your NWIOI path and tuition</h1>
+    <p>Choose your credential to see Core Program tuition and what’s included. Then see how your prior training could count.</p>
     <p class="small muted">Your credential (set by AASECT) determines the training you need. Your NWIOI tier determines what you buy from NWIOI.</p>
     ${config.preview ? '<p class="notice warn small">Preview mode: draft prices and placeholder links are visible and labeled. The public sees only approved offers.</p>' : ''}
   </section>
@@ -330,9 +400,10 @@ function render() {
       <section class="card">
         ${radioGroup('path', 'Which credential are you working toward?', [...config.paths.filter((x) => x.enabled).map((x) => [x.path, x.pathName]), ['deciding', 'I’m still deciding']], state.path)}
       </section>
-      ${p ? questions(p) : ''}
+      ${p ? priorIntro() : ''}
+      ${p && state.showPrior ? questions(p) : ''}
     </div>
-    <aside class="quick-price card" aria-label="Your NWIOI track and tuition">${resultPanel()}</aside>
+    <aside class="quick-price card" aria-label="Your NWIOI tuition">${resultPanel()}</aside>
   </div>
   <div id="compare-wrap">${compareSection(false)}</div>`;
   renderBar();
@@ -369,7 +440,7 @@ function requestEstimate(immediate = false) {
     try {
       const res = await fetch('/api/track-estimate', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ path: state.path, core: state.core, skills: state.skills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, coreSar: state.coreSar, modular: state.modular }),
+        body: JSON.stringify({ path: state.path, core: state.core, skills: state.skills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, additional: state.additional, alaCarte: state.alaCarte }),
       });
       const body = await res.json();
       if (mine !== seq) return;
@@ -388,12 +459,21 @@ function setHours(key, value) {
   const max = pathCfg().benchmarks[key];
   if (value === 'unsure' || value === null) state[key] = value;
   else state[key] = Math.max(0, Math.min(max, Math.round(Number(value))));
-  // Hours answers change the suggested Modular quantities; drop stale overrides.
-  if (key === 'core') state.modular.coreCeus = null;
-  if (key === 'skills') state.modular.skillsCeus = null;
-  if (key === 'supervision') { state.modular.individualHours = null; state.modular.groupSessions = null; }
+  // Hours answers change the suggested quantities; drop stale overrides.
+  if (key === 'core' || key === 'skills') { state.additional = freshAdditional(); state.alaCarte[key === 'core' ? 'coreCeus' : 'skillsCeus'] = null; }
+  if (key === 'supervision') { state.alaCarte.individualHours = null; state.alaCarte.groupSessions = null; }
   syncQuestion(key);
   requestEstimate();
+}
+
+function showPrior() {
+  state.showPrior = true;
+  save();
+  render();
+  requestEstimate(true);
+  const q = $main.querySelector('#prior-questions');
+  q?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  q?.querySelector('input')?.focus({ preventScroll: true });
 }
 
 // ------------------------------------------------------------------ events
@@ -404,8 +484,12 @@ $main.addEventListener('input', (ev) => {
   else if (t.id === 'credits-in') {
     const c = Number(t.value);
     $main.querySelector('#credits-out').textContent = c > 0 ? `= ${c * pathCfg().benchmarks.semesterCreditClockHours} hours` : '';
-  } else if (t.dataset.mod && t.type === 'number') {
-    state.modular[t.dataset.mod] = t.value === '' ? null : Math.max(0, Math.round(Number(t.value)));
+  } else if (t.dataset.ala && t.type === 'number') {
+    state.alaCarte[t.dataset.ala] = t.value === '' ? null : Math.max(0, Math.round(Number(t.value)));
+    requestEstimate();
+  } else if (t.dataset.add) {
+    const v = t.value === '' ? null : Math.max(0, Number(t.value));
+    state.additional[t.dataset.add] = t.dataset.add === 'nwioiCeus' && v !== null ? Math.round(v) : v;
     requestEstimate();
   }
 });
@@ -415,7 +499,7 @@ $main.addEventListener('change', (ev) => {
   if (t.name === 'path') {
     const prev = state.path;
     state.path = t.value;
-    if (prev !== t.value) { state.modular = freshModular(); state.coreSar = null; }
+    if (prev !== t.value) { state.alaCarte = freshAla(); state.additional = freshAdditional(); }
     if (!deciding()) for (const k of ['core', 'skills', 'supervision']) if (typeof state[k] === 'number') state[k] = Math.min(state[k], pathCfg().benchmarks[k]);
     result = null;
     render();
@@ -423,16 +507,15 @@ $main.addEventListener('change', (ev) => {
     requestEstimate(true);
   } else if (t.name === 'sar' || t.name === 'where') {
     state[t.name] = t.value;
-    if (t.name === 'sar') { state.modular.sar = null; state.coreSar = null; }
-    if (t.name === 'where') { state.modular.individualHours = null; state.modular.groupSessions = null; }
+    if (t.name === 'sar') state.alaCarte.sar = null;
+    if (t.name === 'where') { state.alaCarte.individualHours = null; state.alaCarte.groupSessions = null; }
     const scrollY = window.scrollY;
     render();
     window.scrollTo(0, scrollY);
     $main.querySelector(`input[name="${t.name}"][value="${t.value}"]`)?.focus();
     requestEstimate(true);
   } else if (t.dataset.num && t.value === '') setHours(t.dataset.num, null);
-  else if (t.dataset.mod === 'sar') { state.modular.sar = t.checked; requestEstimate(true); }
-  else if ('coreSar' in t.dataset) { state.coreSar = t.checked; requestEstimate(true); }
+  else if (t.dataset.ala === 'sar') { state.alaCarte.sar = t.checked; requestEstimate(true); }
 });
 
 $main.addEventListener('toggle', (ev) => { if (ev.target.matches?.('details.expand')) openState[ev.target.id] = ev.target.open; }, true);
@@ -447,7 +530,8 @@ $main.addEventListener('click', (ev) => {
   }
   const t = ev.target.closest('button');
   if (!t) return;
-  if (t.dataset.zero) setHours(t.dataset.zero, 0);
+  if ('showPrior' in t.dataset) showPrior();
+  else if (t.dataset.zero) setHours(t.dataset.zero, 0);
   else if (t.dataset.unsure) setHours(t.dataset.unsure, state[t.dataset.unsure] === 'unsure' ? null : 'unsure');
   else if (t.dataset.addCredits) {
     const c = Number($main.querySelector('#credits-in').value);
@@ -465,6 +549,7 @@ $main.addEventListener('click', (ev) => {
     config = await (await fetch('/api/config')).json();
     load();
     if (state.path && state.path !== 'deciding' && !config.paths.some((x) => x.path === state.path && x.enabled)) state = fresh();
+    if (anyAnswer()) state.showPrior = true;
     render();
     if (state.path) requestEstimate(true);
   } catch {

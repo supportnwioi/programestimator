@@ -55,46 +55,49 @@ AI is used only to summarize documents, extract course details and **explicitly 
 
 ## Track finder & tuition (default page)
 
-Headline **“Find the right NWIOI track for you”** (suggested website link text: **“Find my track & see tuition”**). The visitor picks a credential (Sex Therapist, Sexuality Counselor, Sexuality Educator or “I’m still deciding”) and answers:
+Headline **“Find your NWIOI path and tuition”** (suggested website link text: **“See my tuition & how my training counts”**). NWIOI offers two tiers per credential:
+
+- **Tier I · Core Program:** 99 CEUs of NWIOI coursework, supervision for the credential, and SAR, at a fixed tuition. SAR is always included, and tuition stays the same if the student has already completed one.
+- **Tier II · À La Carte:** individual courses, NWIOI supervision and SAR, bought as needed.
+
+| Credential | Core tuition | Pay in full (7%) | Supervision in Core |
+|---|---:|---:|---|
+| Sex Therapist | $8,200 | $7,626.00 | 26 individual + 24 group hours |
+| Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours |
+| Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours |
+
+**Flow.** The visitor picks a credential (or “I’m still deciding”), and Core tuition, pay in full and what’s included appear right away. Under the marketing copy (“See how far your prior training can take you…”), **See how your prior training could count** opens the questions:
 1. **Core Knowledge Areas (CKAs):** up to 90 hours.
-2. **Skills training:** up to 60 hours, using the credential’s own label (Sex Therapy, Sexuality Counseling or Sexuality Education Skills Training).
-3. **Supervision completed toward this credential:** up to 50, 30 or 25 hours.
-4. **SAR:** yes, no or not sure.
-5. **Where they want to do supervision:** with NWIOI, with an outside supervisor, or help me decide.
+2. **Skills training:** up to 60 hours, using the credential’s own label.
+3. **Supervision completed toward this credential**, **SAR** and **where they want to do supervision**. These only decide whether À La Carte may fit better.
 
-Each hours question has a slider, a number box, “None yet” and “I’m not sure”. Unanswered, zero and unsure are kept distinct. A semester-credit helper adds converted hours to either education category.
+Each hours question has a slider, a number box, “None yet” and “I’m not sure”. Unanswered, zero and unsure stay distinct. A semester-credit helper adds converted hours to either education category. No email, uploads or clinical-hour questions are asked.
 
-**The result updates live.** Before the answers support a recommendation, it shows the credential’s complete program (Comprehensive), without “Recommended for you”. Once all hours questions and the supervision location are answered (or outside supervision is chosen), it shows one recommended track, why it fits, the price, what’s included and one primary action. Alternatives sit behind **Compare tracks**. A bar pinned to the top of the screen shows the current price and booking button. The planning-estimate text sits directly under the main amount.
+**Three-part summary under Tier I** (`priorCoverage` in `src/tracks.js`):
+1. **What you may already have covered.** Overlap is counted once.
+2. **What NWIOI includes:** 99 CEUs, plus supervision and SAR.
+3. **What you may still need.** This shows the remaining CEUs, a box for how many to take with NWIOI, an optional box for the expected cost of coursework with other institutes (“Other providers set their own prices”), and the **additional NWIOI coursework** cost at the planning rate ($35/CEU, draft). It ends with **NWIOI tuition** plus that, giving the **Estimated combined cost** and the planning sentence.
 
-**Credentials vs tiers.** AASECT credentials set the training requirements, and NWIOI tiers are what someone buys. Everything is configured in `config/tracks.json`, editable under Admin → **Tracks & tuition**:
-- **Per credential:** curriculum, supervision package and minimum period, tuition, payment plans, links and status. When the catalog is saved, these are checked against the active AASECT ruleset.
-- **Pay in full:** `payInFull` sets the 7% saving and which tiers it applies to.
-- **Scholarship:** `scholarship` holds the FIELD Growth Scholarship text and link.
+- **With a curriculum mapping** (`core.curriculumMapping: {core, skills}`, adding to 99), core and skills gaps are calculated separately and extra hours in one never fill the other.
+- **Without one** (the current state for all three credentials), the gap is 150 − 99 = 51 hours. It's labeled **Rough planning estimate**, with a note that admissions reviews topics and live hours.
+- If either education answer is unknown, the summary stays unresolved, and no additional or combined cost is guessed.
 
-Only `"approved"` items show prices and links publicly. Drafts are visible to signed-in admins, or to everyone with `NWIOI_PREVIEW=1`, always labeled. Otherwise the public sees “Confirm tuition with admissions” or “Confirm Core tuition with admissions”.
+Example: 25 prior CEUs → 26 remaining → $910 → combined $9,110 / $8,360 / $7,860.
 
-**Pricing** (`src/tracks.js`). This is separate from the detailed engine, whose itemized retail calculation is never shown as package tuition.
-- **Tier I · Comprehensive:** fixed **Standard NWIOI tuition** that includes SAR. Prior work never changes it.
-- **Tier II · Core** (Sex Therapist only for now): fixed standard tuition plus an optional SAR add-on.
-- **Pay in full · Save 7%** (Tier I and II): package tuition × 0.93, rounded to the cent. Add-ons such as the Core SAR stay at full price. For example, draft Core is $6,835.50 + $650 SAR = **$7,485.50**.
-- **Tier III · Modular:** **Estimated cost with NWIOI**, made up of:
-  - $35 × the CEUs they plan to buy, with each education category calculated separately (extra hours in one never close the other’s gap);
-  - plus selected add-ons: “Add SAR for $650 if needed”, NWIOI individual supervision hours, and group sessions.
-  - Visitors see one exact total, plus an expandable **What's included** list of plain-language quantities (for example, "55 Core Knowledge CEUs" or "26 hours of individual supervision"). They don't see unit prices, formulas, line amounts or subtotals, and none of those are sent to the browser. **Change what you'd buy** lets visitors adjust the quantities. Outside supervision is excluded, with the note "You'll pay your outside supervisor separately."
-- **On Comprehensive and Core:** an **Estimated cost if purchased separately** figure shows the same Modular total. It updates live, with a sentence built from what's included (courses, supervision, and SAR only when it's selected) and a **See what's included** list.
-- **FIELD Growth Scholarship and equity rates:** shown next to the price, with **View scholarship application** (the current form) and **Ask about equity rates** (admissions). Award amounts, and whether they combine with pay in full, are left to NWIOI.
+**Tier II · À La Carte** shows one estimated NWIOI total and an expandable **See what’s included** list of quantities only. Unit rates, formulas, line amounts and subtotals never leave the server. **Change what you’d buy** adjusts the quantities. SAR and NWIOI supervision are included only when selected. With outside supervision: “You’ll pay your outside supervisor separately.” In the comparison beside Core it’s labeled **Estimated cost if purchased separately**.
 
-**Recommendation rules** (once the answers are in), in order:
-1. **Outside supervision, or at least 20% of the supervision target already done:** Modular.
-2. **Sex Therapist with about 51 or more potentially applicable education hours (core + skills), who still wants full NWIOI supervision:** Core (“Core may be your fit”). Admissions confirms the topics and live hours.
-3. **Otherwise, a complete Modular estimate below Comprehensive tuition:** Modular.
-4. **Otherwise:** Comprehensive.
+**Package savings** appear on the Core card only when the separate purchase covers the same components and quantities: 99 CEUs, the same individual hours, the same group hours, and SAR. Group hours must divide evenly into À La Carte’s 3-hour sessions. So Sex Therapist (save $2,585) and Counselor (save $590) show savings. Educator (20 group hours) doesn’t.
+
+**Recommendation** (only once the answers support it): À La Carte if supervision will be outside NWIOI, or at least 20% of the supervision target is done. Otherwise Core. The main panel always centers on Core. If À La Carte is recommended, a callout shows its estimate and links to the comparison, and the top bar switches to it.
 
 **Next steps:**
-- **Comprehensive:** “Explore enrollment” (the approved enrollment link, otherwise admissions), plus optional “Meet your supervisors” and “See a sample training weekend” links.
-- **Core:** “Review my prior training”.
-- **Modular:** “Explore courses”, plus “Help me choose what I need”.
-- **Still deciding:** “Talk through my options”.
+- Primary: **Review my prior training** (admissions booking).
+- Secondary: **Explore the NWIOI course library**, with “Additional NWIOI courses depend on current availability.”
+- **Book a free admissions call** is in the pinned bar.
+- **Explore scholarship and equity rates** sits next to tuition (FIELD Growth Scholarship form; awards and their interaction with pay in full are subject to NWIOI review).
+- Once the enrollment link is approved, “Ready to enroll?” also appears.
+
+**Configuration.** Everything is in `config/tracks.json`, editable under Admin → **Tracks & tuition** and validated against the AASECT rulesets when saved (Core = 99 CEUs, includes SAR, supervision adds up to the credential target, mapping adds to 99). Only `"approved"` items show prices and links publicly. Drafts are visible to signed-in admins, or to everyone with `NWIOI_PREVIEW=1`, always labeled.
 
 No email, transcripts, course inventory or clinical/client-contact hours are asked for. The detailed course-by-course estimator at `/detailed` is internal: it requires admin sign-in.
 
