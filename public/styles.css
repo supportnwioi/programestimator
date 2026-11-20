@@ -445,3 +445,21 @@ body.finder details#full-reqs { margin: 6px 0 0; }
   .guide-table th[scope=row] { width: auto; }
   .grid3 { grid-template-columns: 1fr; }
 }
+
+/* ---------- payoff: potential savings ---------- */
+.savings-block { margin: 6px 0 10px; }
+.savings-lead { font-family: var(--serif); font-size: 1.15rem; line-height: 1.4; margin: 0 0 8px; }
+.savings-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--olive); border-radius: var(--radius); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.tile:nth-child(2) { border-top-color: var(--tan); }
+.tile strong { font-size: 1.8rem; line-height: 1.1; color: var(--olive); border-radius: 4px; }
+.tile:nth-child(2) strong { color: var(--text); }
+.tile span { font-size: .88rem; color: var(--muted); }
+.tile strong.flash { animation: compare-flash .7s ease-out; }
+.savings-tiles { grid-template-columns: 1fr 1fr; }
+.result-big { font-size: 1rem; }
+@media (max-width: 680px) { .tile { padding: 8px 10px; } .tile strong { font-size: 1.45rem; } .tile span { font-size: .82rem; } }
+.savings-tiles { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tile strong { white-space: nowrap; }
+@media (max-width: 680px) { .tile strong { font-size: 1.3rem; } }
+.tile .chip { white-space: normal; display: inline-block; max-width: 100%; margin-top: 4px; font-size: .75rem; }

@@ -386,7 +386,7 @@ test('Track finder: college question first (graduate vs undergraduate prompt, AA
   await settled(page);
   assert.match(await text(page, '[data-testid="college-follow"]'), /three semester credits = 45 clock hours\. If only part of a course covered relevant material, enter your estimate of that portion\./);
   assert.match(await text(page, '[data-testid="credits-out"]'), /= about 45 clock hours/);
-  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours of your prior training may count toward the 150 coursework hours\./);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours may count toward the 150 coursework hours:/);
   await college(page, 'yes', 20, 'hours');
   await settled(page);
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 20 hours/);
@@ -400,7 +400,7 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   await ce(page, 'yes', { aasect: 10, other: 12, unsure: 4 });
   await settled(page);
   assert.equal(await text(page, '[data-testid="result-h"]'), 'Here’s what may count toward your education requirements');
-  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 106 hours of your prior training may count toward the 150 coursework hours/);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 106 hours may count toward the 150 coursework hours/);
   assert.match(squash(await text(page, '[data-testid="college-line"]')), /about 90 hours \(6 semester credits\)/);
   assert.match(squash(await text(page, '[data-testid="ce-line"]')), /about 16 hours \(10 AASECT-approved; 12 from another CE body, counted at half value\)/);
   assert.match(squash(await text(page, '[data-testid="pending"]')), /4 CE credits pending review/);
@@ -430,7 +430,7 @@ test('Track finder: No path — CE can be entered with no college coursework; No
   await college(page, 'no');
   await ce(page, 'yes', { other: 20 });
   await settled(page);
-  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 10 hours of your prior training may count/);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 10 hours may count/);
   assert.equal(await page.locator('[data-testid="college-line"]').count(), 0);
   await ce(page, 'no');
   await settled(page);
@@ -624,5 +624,68 @@ test('Track finder (mobile): Yes, No and I’m not sure paths; CE without colleg
   const [headTop, barBottom] = await page.evaluate(() => [document.getElementById('ala-h').getBoundingClientRect().top, document.getElementById('price-bar').getBoundingClientRect().bottom]);
   assert.ok(headTop >= barBottom, `builder heading ${headTop} below bar ${barBottom}`);
   await shot(page, '13-finder-mobile');
+  await page.close();
+});
+
+test('Track finder (preview): payoff — potential time and coursework savings side by side, updating together', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await settled(page);
+  assert.equal(await page.locator('[data-testid="savings-block"]').count(), 0, 'no savings before any hours');
+  await college(page, 'yes', 20, 'hours');
+  await ce(page, 'yes', { aasect: 5 });
+  await settled(page);
+  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you 25 hours and $875 in additional coursework.');
+  assert.equal(await text(page, '[data-testid="save-hours"]'), '25 hours');
+  assert.match(squash(await text(page, '[data-testid="tile-hours"]')), /About three full days of training you could avoid repeating/);
+  assert.equal(await text(page, '[data-testid="save-dollars"]'), '$875');
+  assert.match(squash(await text(page, '[data-testid="tile-dollars"]')), /Potential coursework savings at \$35 per CEU/);
+  assert.equal(squash(await text(page, '[data-testid="savings-sentence"]')), 'If these hours count toward your credential and cover coursework you’d otherwise need to take, you could save about $875 in additional course costs.');
+  // Side by side, directly under the heading and above the breakdown.
+  const pos = await page.evaluate(() => {
+    const r = (sel) => document.querySelector(sel).getBoundingClientRect();
+    return { h: r('[data-testid="result-h"]').bottom, block: r('[data-testid="savings-block"]').top, a: r('[data-testid="tile-hours"]'), b: r('[data-testid="tile-dollars"]'), lines: r('[data-testid="source-lines"]').top };
+  });
+  assert.ok(Math.abs(pos.a.top - pos.b.top) < 2 && pos.b.left > pos.a.left, 'tiles side by side');
+  assert.ok(pos.block >= pos.h && pos.block - pos.h < 60, 'right under the heading');
+  assert.ok(pos.lines > pos.block, 'above the coursework breakdown');
+  assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  // Both numbers move together; Core tuition stays.
+  await page.fill('#ce-aasect', '10');
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="save-hours"]'), '30 hours');
+  assert.equal(await text(page, '[data-testid="save-dollars"]'), '$1,050');
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 30 hours may count/);
+  await page.fill('#ce-other', '8');
+  await settled(page);
+  assert.deepEqual([await text(page, '[data-testid="save-hours"]'), await text(page, '[data-testid="save-dollars"]')], ['34 hours', '$1,190'], 'other CE at half value');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
+  await college(page, 'no');
+  await ce(page, 'no');
+  await settled(page);
+  assert.equal(await page.locator('[data-testid="savings-block"]').count(), 0, 'no savings with no hours');
+  await page.close();
+  // Mobile: tiles still side by side, nothing overflows.
+  const m = await browser.newPage({ ...devices['iPhone 13'] });
+  await m.goto(BASE2);
+  await choose(m, 'sexuality_counselor');
+  await college(m, 'yes', 20, 'hours');
+  await ce(m, 'yes', { aasect: 5 });
+  await settled(m);
+  const [a, b] = await m.$$eval('.tile', (els) => els.map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, left: r.left, right: r.right }; }));
+  assert.ok(Math.abs(a.top - b.top) < 2 && b.right <= 390, 'side by side on mobile');
+  assert.equal(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0);
+  await m.close();
+});
+
+test('Track finder (public): hours shown; dollar savings wait for an approved rate', async () => {
+  const page = await newPage(BASE);
+  await choose(page, 'sex_therapist');
+  await college(page, 'yes', 20, 'hours');
+  await ce(page, 'yes', { aasect: 5 });
+  await settled(page);
+  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you 25 hours in additional coursework.');
+  assert.equal(await page.locator('[data-testid="save-dollars"], [data-testid="savings-sentence"]').count(), 0);
   await page.close();
 });

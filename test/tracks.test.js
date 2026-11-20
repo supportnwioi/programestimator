@@ -189,6 +189,11 @@ test('where prior learning came from: semester credits × 15; AASECT CE hour for
   assert.equal(est('sex_therapist', { college: { answer: 'no' }, ce: { answer: 'no' } }).prior.sources.state, 'zero');
   assert.equal(est('sex_therapist', { college: { answer: 'yes' } }).prior.sources.state, 'incomplete');
   assert.equal(est('sex_therapist', { college: { answer: 'no' }, ce: { answer: 'yes', unsure: 8 } }).prior.sources.state, 'unsure', 'only unsure credits → review');
+  const pay = est('sex_therapist', { college: { answer: 'yes', unit: 'hours', amount: 20 }, ce: { answer: 'yes', aasect: 5 } }).prior.potentialSavings;
+  assert.deepEqual([pay.hours, pay.display, pay.rate], [25, '$875', '$35'], '20 class hours + 5 AASECT CE');
+  assert.equal(est('sex_therapist', { college: { answer: 'yes', unit: 'hours', amount: 20 }, ce: { answer: 'yes', aasect: 5 } }, { preview: false }).prior.potentialSavings.display, null, 'dollars hidden while the rate is draft');
+  assert.equal(est('sex_therapist', { college: { answer: 'no' }, ce: { answer: 'no' } }).prior.potentialSavings, null);
+  assert.equal(est('sex_therapist', { core: 60, skills: 29 }).prior.potentialSavings.display, '$3,115', 'category hours use the same count shown');
   const live = est('sex_therapist', { core: 30, skills: 5, liveCore: 10, liveSkills: 40 }).prior.live;
   assert.deepEqual([live.core.hours, live.core.min, live.skills.hours, live.skills.min], [10, 15, 40, 30]);
 });

@@ -178,6 +178,22 @@ function priorQuestion(p) {
     </div>`, 'by-category', 'expand categories')}`;
 }
 
+// Payoff: potential time and coursework savings, side by side, from the same hour count.
+function savingsBlock(pr) {
+  const sv = pr.potentialSavings;
+  if (!sv) return '';
+  const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  const daysText = pr.days > 0 ? `About ${word(pr.days)} full day${pr.days === 1 ? '' : 's'} of training you could avoid repeating` : 'Training you could avoid repeating';
+  return `<div class="savings-block" data-testid="savings-block">
+    <p class="savings-lead" data-testid="savings-lead">Your prior training could save you ${plural(sv.hours, 'hour')}${sv.display ? ` and ${esc(sv.display)}` : ''} in additional coursework.</p>
+    <div class="savings-tiles">
+      <div class="tile" data-testid="tile-hours"><strong data-testid="save-hours">${plural(sv.hours, 'hour')}</strong><span>${cap(daysText)}</span></div>
+      ${sv.display ? `<div class="tile" data-testid="tile-dollars"><strong data-testid="save-dollars">${esc(sv.display)}</strong><span>Potential coursework savings at ${esc(sv.rate)} per CEU${sv.draft ? ' <span class="chip warn">Draft rate · preview only</span>' : ''}</span></div>` : ''}
+    </div>
+    ${sv.display ? `<p class="small" data-testid="savings-sentence">If these hours count toward your credential and cover coursework you’d otherwise need to take, you could save about <strong>${esc(sv.display)}</strong> in additional course costs.</p>` : ''}
+  </div>`;
+}
+
 // ------------------------------------------------------------------ the result, right below the questions
 function quickResult() {
   if (!result) return '';
@@ -226,7 +242,6 @@ function quickResult() {
     const l = pr.live?.[k];
     if (l) lines.push(`<li data-testid="live-${k}">Live ${esc(label)}: ${l.hours} of ${l.min} required live hours</li>`);
   }
-  const days = pr.days > 0 ? ` That’s roughly ${word(pr.days)} full day${pr.days === 1 ? '' : 's'} of training.` : '';
   let estimate = '';
   if (hasCat) {
     const est = [];
@@ -255,7 +270,8 @@ function quickResult() {
       ${pr.combined ? `<p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>` : ''}`, 'plan-remaining') : '';
   return `<div class="quick-result" data-testid="quick-result">
     <p class="result-h" data-testid="result-h">Here’s what may count toward your education requirements</p>
-    <p class="result-big" data-testid="result-body">About <strong>${plural(covered, 'hour')}</strong> of your prior training may count toward the ${b.education} coursework hours.${days}</p>
+    ${savingsBlock(pr)}
+    <p class="result-big" data-testid="result-body">About <strong>${plural(covered, 'hour')}</strong> may count toward the ${b.education} coursework hours:</p>
     <ul class="small result-lines" data-testid="source-lines">${lines.join('')}</ul>
     ${estimate}
     ${note}
@@ -486,7 +502,7 @@ function renderResult() {
     if (ac && result) ac.innerHTML = alaCourses();
     const ar = $main.querySelector('#ala-result');
     if (ar && result) ar.innerHTML = alaResult();
-    for (const sel of ['[data-testid="result-body"] strong', '[data-testid="combined-cost"]', '[data-testid="price-alaCarte"]', '[data-testid="ala-coursework-cost"]']) flashChanged(sel);
+    for (const sel of ['[data-testid="save-hours"]', '[data-testid="save-dollars"]', '[data-testid="result-body"] strong', '[data-testid="combined-cost"]', '[data-testid="price-alaCarte"]', '[data-testid="ala-coursework-cost"]']) flashChanged(sel);
   });
   watchRows();
 }

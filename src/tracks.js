@@ -215,6 +215,10 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null,
     days: (cov.state === 'known' || cov.state === 'rough') && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours,
     sources,
+    // Potential savings: the same preliminary hour count shown in the result × the planning rate.
+    potentialSavings: (cov.state === 'known' || cov.state === 'rough') && cov.covered > 0
+      ? { hours: cov.covered, rate: planRateVisible ? money(planRate.perCeu) : null, amount: planRateVisible ? cov.covered * planRate.perCeu : null, display: planRateVisible ? money(cov.covered * planRate.perCeu) : null, draft: planRateVisible && planRate.status !== 'approved' }
+      : null,
     unassigned: cov.basis === 'categories' && cov.state === 'known' && tot.state === 'hours' && tot.hours > cov.covered ? tot.hours - cov.covered : 0,
     live: {
       core: liveIn.core.state === 'hours' ? { hours: liveIn.core.hours, min: b.coreLiveMin } : null,
