@@ -320,15 +320,21 @@ async function categories(page, core, skills) { await openCategories(page); awai
 async function college(page, answer, amount, unit = 'credits') {
   await page.check(`input[name="college"][value="${answer}"]`);
   if (answer === 'yes') {
-    if (unit === 'hours') await page.check('input[name="collegeUnit"][value="hours"]');
+    await page.check(`input[name="collegeUnit"][value="${unit}"]`);
     if (amount !== undefined) await page.fill('#college-amount', String(amount));
   }
 }
+// One CE total plus who approved it; several types → "Some of each".
 async function ce(page, answer, { aasect, other, unsure } = {}) {
   await page.check(`input[name="ce"][value="${answer}"]`);
-  if (aasect !== undefined) await page.fill('#ce-aasect', String(aasect));
-  if (other !== undefined) await page.fill('#ce-other', String(other));
-  if (unsure !== undefined) await page.fill('#ce-unsure', String(unsure));
+  const given = [['aasect', aasect], ['other', other], ['unsure', unsure]].filter(([, v]) => v !== undefined);
+  if (given.length > 1) {
+    await page.check('input[name="ceApproval"][value="mix"]');
+    for (const [k, v] of given) await page.fill(`#ce-${k}`, String(v));
+  } else if (given.length === 1) {
+    await page.fill('#ce-amount', String(given[0][1]));
+    await page.check(`input[name="ceApproval"][value="${given[0][0]}"]`);
+  }
 }
 async function openBuilder(page) {
   if (await page.locator('#ala-flow').count()) return;
@@ -370,21 +376,30 @@ test('Track finder: headline, credential, then the AASECT requirements guide for
   await page.close();
 });
 
-test('Track finder: college question first (graduate vs undergraduate prompt, AASECT link); credits convert at 15 hours each', async () => {
+test('Track finder: college question first (AASECT degree requirements link); class hours or semester credits; credits convert at 15 hours each', async () => {
   const page = await newPage(BASE2);
   await choose(page, 'sex_therapist');
   await settled(page);
-  assert.equal(squash(await text(page, '[data-testid="college-q"] legend')), 'Did you take any relevant courses at an accredited college or university?');
-  assert.match(await text(page, '[data-testid="college-q"]'), /Think about graduate coursework\. AASECT requires an advanced clinical degree/);
+  assert.equal(squash(await text(page, '[data-testid="college-q"] legend')), 'Did you take any college or university classes that covered human sexuality?');
+  assert.equal(await text(page, '[data-testid="college-help"]'), 'Think about classes you took at an accredited school, even if only part of a class covered sexuality. A rough estimate is fine.');
+  assert.equal(await text(page, '[data-testid="academic-link"]'), 'AASECT degree requirements');
   assert.equal(await page.getAttribute('[data-testid="academic-link"]', 'href'), 'https://www.aasect.org/career/academic-qualifications');
   const order = await page.evaluate(() => document.querySelector('[data-testid="college-q"]').getBoundingClientRect().top < document.querySelector('[data-testid="ce-q"]').getBoundingClientRect().top);
   assert.ok(order, 'college before CE');
   await choose(page, 'sexuality_educator');
   await settled(page);
-  assert.match(await text(page, '[data-testid="college-q"]'), /Include relevant undergraduate and graduate coursework\. AASECT requires at least a bachelor’s degree/);
+  await page.check('input[name="college"][value="yes"]');
+  assert.equal(squash(await text(page, '[data-testid="college-follow"] legend')), 'How would you like to enter your coursework?');
+  assert.deepEqual(await page.$$eval('input[name="collegeUnit"]', (els) => els.map((e) => e.parentElement.textContent.trim())), ['Class hours', 'Semester credits']);
+  assert.equal(await page.locator('#college-amount').count(), 0, 'amount appears after choosing how to enter it');
+  await college(page, 'yes', 6, 'hours');
+  assert.equal(await text(page, 'label[for="college-amount"]'), 'About how many class hours covered sexuality?');
+  assert.equal(await text(page, '[data-testid="hours-help"]'), 'For example, if you spent about 6 hours on sexuality topics in a longer course, enter 6.');
+  assert.equal(await page.locator('[data-testid="credits-help"]').count(), 0, 'conversion example only in the credits view');
   await college(page, 'yes', 3);
   await settled(page);
-  assert.match(await text(page, '[data-testid="college-follow"]'), /three semester credits = 45 clock hours\. If only part of a course covered relevant material, enter your estimate of that portion\./);
+  assert.equal(await text(page, 'label[for="college-amount"]'), 'About how many semester credits were for classes focused on sexuality?');
+  assert.equal(await text(page, '[data-testid="credits-help"]'), 'AASECT’s example: three semester credits = 45 clock hours. If only part of a class covered sexuality, choose Class hours to estimate that portion.');
   assert.match(await text(page, '[data-testid="credits-out"]'), /= about 45 clock hours/);
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours may count toward the 150 coursework hours:/);
   await college(page, 'yes', 20, 'hours');
@@ -563,6 +578,9 @@ test('Track finder: keyboard-only use; still deciding; verified admissions desti
   await page.waitForSelector('input[name="college"]');
   await page.focus('input[name="college"][value="yes"]');
   await page.keyboard.press('Space');
+  await page.waitForSelector('input[name="collegeUnit"]');
+  await page.focus('input[name="collegeUnit"][value="credits"]');
+  await page.keyboard.press('Space');
   await page.waitForSelector('#college-amount');
   await page.focus('#college-amount');
   await page.keyboard.type('3');
@@ -666,11 +684,13 @@ test('Track finder (preview): payoff — potential time and coursework savings s
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
   assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Inquire About Training');
   // Both numbers move together; Core tuition stays.
-  await page.fill('#ce-aasect', '10');
+  await page.fill('#ce-amount', '10');
   await settled(page);
   assert.equal(await text(page, '[data-testid="save-hours"]'), '30 hours');
   assert.equal(await text(page, '[data-testid="save-dollars"]'), '$1,050');
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 30 hours may count/);
+  await page.check('input[name="ceApproval"][value="mix"]');
+  await page.fill('#ce-aasect', '10');
   await page.fill('#ce-other', '8');
   await settled(page);
   assert.deepEqual([await text(page, '[data-testid="save-hours"]'), await text(page, '[data-testid="save-dollars"]')], ['34 hours', '$1,190'], 'other CE at half value');
@@ -771,5 +791,35 @@ test('Track finder (preview, shipped defaults): “Inquire About Training” ope
   assert.equal(await cta.getAttribute('target'), '_blank');
   assert.equal(await page.getAttribute('[data-testid="equity"]', 'href'), 'https://student.nwioi.com/inquire');
   assert.doesNotMatch(await page.textContent('[data-testid="quick-result"]'), /Placeholder link/);
+  await page.close();
+});
+
+test('Track finder: CE question — one total plus who approved it; same rules (AASECT 1:1, other half, unsure pending)', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sexuality_counselor');
+  assert.equal(squash(await text(page, '[data-testid="ce-q"] legend')), 'Have you earned continuing education (CE) credits from training on sexuality?');
+  await page.check('input[name="ce"][value="yes"]');
+  assert.equal(await text(page, 'label[for="ce-amount"]'), 'About how many CE credits did you earn?');
+  await college(page, 'no');
+  for (const [approval, expect] of [['aasect', /About 12 hours/], ['other', /About 6 hours/]]) {
+    await page.fill('#ce-amount', '12');
+    await page.check(`input[name="ceApproval"][value="${approval}"]`);
+    await settled(page);
+    assert.match(squash(await text(page, '[data-testid="result-body"]')), expect, approval);
+  }
+  await page.check('input[name="ceApproval"][value="unsure"]');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="pending"]')), /12 CE credits/);
+  // Typing digits after the approval question is visible keeps their order.
+  await page.fill('#ce-amount', '');
+  await page.click('#ce-amount');
+  await page.keyboard.type('15');
+  assert.equal(await page.inputValue('#ce-amount'), '15');
+  await page.check('input[name="ceApproval"][value="mix"]');
+  await page.fill('#ce-aasect', '10');
+  await page.fill('#ce-other', '8');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 14 hours/);
+  assert.equal(squash(await text(page, '#by-category summary')), 'Enter hours by category, if you know them');
   await page.close();
 });

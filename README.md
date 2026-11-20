@@ -97,14 +97,17 @@ Monthly amounts are rounded to the cent, and the final payment absorbs the round
      - the Counselor and Educator rule that at least 30 skills hours be field-specific;
      - links to AASECT’s Core Knowledge Areas page and the credential’s official requirements page.
    - All of this comes from the verified rulesets in `config/rulesets/`.
-3. **Where prior learning came from:**
-   - **College coursework:** “Did you take any relevant courses at an accredited college or university?” (Yes / No / I’m not sure).
-     - The prompt is graduate coursework for Sex Therapist (advanced clinical degree), or undergraduate and graduate for Counselor and Educator (bachelor’s minimum). It links to AASECT’s Academic Qualifications page.
-     - If yes, the visitor picks semester credits (× 15 clock hours) or class hours, and can estimate the relevant portion of a course.
-   - **Continuing education:** “Have you earned continuing education credits from sexuality-related training?” (Yes / No / I’m not sure).
-     - If yes, there are fields for AASECT-approved credits (hour for hour), credits from another professional CE body (half value) and unsure credits (pending review). Both types can be entered.
-     - This works with no college coursework.
-   - **I know my hours by category** (collapsed): Core Knowledge, skills training and live hours.
+3. **Where prior learning came from** (worded so first-time visitors can answer from memory):
+   - **College classes:** “Did you take any college or university classes that covered human sexuality?” (Yes / No / I’m not sure).
+     - Helper: “Think about classes you took at an accredited school, even if only part of a class covered sexuality. A rough estimate is fine.”
+     - The **AASECT degree requirements** link sits on its own line.
+     - If yes: “How would you like to enter your coursework?”
+       - **Class hours:** “About how many class hours covered sexuality?”, with the 6-hours example.
+       - **Semester credits:** “About how many semester credits were for classes focused on sexuality?”. Only this view shows the 3 credits = 45 clock hours example and the tip to use Class hours for part of a class.
+   - **Continuing education:** “Have you earned continuing education (CE) credits from training on sexuality?” (Yes / No / I’m not sure).
+     - If yes: “About how many CE credits did you earn?” plus “Who approved these credits?” (AASECT / Another professional CE body / Not sure / Some of each).
+     - The calculation is unchanged: AASECT counts hour for hour, another body counts at half value, and “not sure” is held for review. “Some of each” shows the split boxes.
+   - **Enter hours by category, if you know them** (collapsed): Core Knowledge, skills training and live hours.
 4. **“Here’s what may count toward your education requirements”**, directly below the questions:
    - **Payoff first:** “Your prior training could save you up to 25 hours and $875 in additional coursework.”
      - Two side-by-side tiles show the hours (with “about N full days”) and the hours × the $35 planning rate.

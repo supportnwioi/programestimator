@@ -21,8 +21,8 @@ let result = null;
 const freshAla = () => ({ coreCeus: null, skillsCeus: null, sar: null, individualHours: null, groupSessions: null });
 const freshAdditional = () => ({ nwioiCeus: null, outsideCost: null });
 // mode: null | 'ala' (À La Carte builder open)
-const freshCollege = () => ({ answer: null, unit: 'credits', amount: null });
-const freshCe = () => ({ answer: null, aasect: null, other: null, unsure: null });
+const freshCollege = () => ({ answer: null, unit: null, amount: null });
+const freshCe = () => ({ answer: null, amount: null, approval: null, aasect: null, other: null, unsure: null });
 const fresh = () => ({ path: null, mode: null, college: freshCollege(), ce: freshCe(), core: null, skills: null, liveCore: null, liveSkills: null, supervision: null, sar: null, where: null, additional: freshAdditional(), alaCarte: freshAla() });
 let state = fresh();
 
@@ -150,11 +150,6 @@ function requirementsGuide(p) {
   </section>`;
 }
 
-function degreeHint(p) {
-  return p.path === 'sex_therapist'
-    ? 'Think about graduate coursework. AASECT requires an advanced clinical degree for this credential.'
-    : 'Include relevant undergraduate and graduate coursework. AASECT requires at least a bachelor’s degree for this credential.';
-}
 
 const ynu = (name, value) => `<div class="seg">${[['yes', 'Yes'], ['no', 'No'], ['unsure', 'I’m not sure']].map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${value === k ? 'checked' : ''}> ${l}</label>`).join('')}</div>`;
 const numField = (id, attr, label, value, hint = '', step = '1') => `<div class="field"><label for="${id}">${label}</label>
@@ -164,33 +159,42 @@ function priorQuestion(p) {
   const b = p.benchmarks;
   const c = state.college, e = state.ce;
   const creditsOut = c.unit === 'credits' && c.amount > 0 ? `<span class="small" data-testid="credits-out">= about ${Math.round(c.amount * 15)} clock hours</span>` : '';
+  const unitRadios = [['hours', 'Class hours'], ['credits', 'Semester credits']].map(([k, l]) => `<label><input type="radio" name="collegeUnit" value="${k}" ${c.unit === k ? 'checked' : ''}> ${l}</label>`).join('');
+  const approvalRadios = [['aasect', 'AASECT'], ['other', 'Another professional CE body'], ['unsure', 'Not sure'], ['mix', 'Some of each']].map(([k, l]) => `<label><input type="radio" name="ceApproval" value="${k}" ${e.approval === k ? 'checked' : ''}> ${l}</label>`).join('');
   return `
   <fieldset class="src-q" data-testid="college-q">
-    <legend class="q-legend">Did you take any relevant courses at an accredited college or university?</legend>
-    <p class="small muted">${degreeHint(p)} ${linkHtml({ url: ACADEMIC_URL }, 'AASECT academic qualifications', '', 'academic-link')}</p>
+    <legend class="q-legend">Did you take any college or university classes that covered human sexuality?</legend>
+    <p class="small muted" data-testid="college-help">Think about classes you took at an accredited school, even if only part of a class covered sexuality. A rough estimate is fine.</p>
+    <p class="small degree-link">${linkHtml({ url: ACADEMIC_URL }, 'AASECT degree requirements', '', 'academic-link')}</p>
     ${ynu('college', c.answer)}
     ${c.answer === 'yes' ? `<div class="follow" data-testid="college-follow">
-      <fieldset><legend class="small-legend">What do you remember?</legend>
-        <div class="seg">${[['credits', 'Semester credits'], ['hours', 'Class hours']].map(([k, l]) => `<label><input type="radio" name="collegeUnit" value="${k}" ${c.unit === k ? 'checked' : ''}> ${l}</label>`).join('')}</div>
+      <fieldset><legend class="small-legend">How would you like to enter your coursework?</legend>
+        <div class="seg">${unitRadios}</div>
       </fieldset>
-      ${numField('college-amount', 'data-src="college.amount"', c.unit === 'credits' ? 'About how many semester credits?' : 'About how many class hours?', c.amount, '', c.unit === 'credits' ? '0.5' : '1')}
-      ${creditsOut}
-      <p class="small muted">A qualifying class hour can count as one hour toward Core Knowledge. AASECT’s example: three semester credits = 45 clock hours. If only part of a course covered relevant material, enter your estimate of that portion.</p>
+      ${c.unit === 'hours' ? `${numField('college-amount', 'data-src="college.amount"', 'About how many class hours covered sexuality?', c.amount, '', '1')}
+        <p class="small muted" data-testid="hours-help">For example, if you spent about 6 hours on sexuality topics in a longer course, enter 6.</p>` : ''}
+      ${c.unit === 'credits' ? `${numField('college-amount', 'data-src="college.amount"', 'About how many semester credits were for classes focused on sexuality?', c.amount, '', '0.5')}
+        ${creditsOut}
+        <p class="small muted" data-testid="credits-help">AASECT’s example: three semester credits = 45 clock hours. If only part of a class covered sexuality, choose Class hours to estimate that portion.</p>` : ''}
     </div>` : ''}
   </fieldset>
   <fieldset class="src-q" data-testid="ce-q">
-    <legend class="q-legend">Have you earned continuing education credits from sexuality-related training?</legend>
+    <legend class="q-legend">Have you earned continuing education (CE) credits from training on sexuality?</legend>
     ${ynu('ce', e.answer)}
     ${e.answer === 'yes' ? `<div class="follow" data-testid="ce-follow">
-      <p class="small muted">Enter a rough number for any that apply. If you’ve earned both types, enter both.</p>
-      <div class="grid3">
-        ${numField('ce-aasect', 'data-src="ce.aasect"', 'AASECT-approved credits', e.aasect, 'Count hour for hour')}
-        ${numField('ce-other', 'data-src="ce.other"', 'From another professional CE body', e.other, 'Count at half value')}
-        ${numField('ce-unsure', 'data-src="ce.unsure"', 'Not sure who approved them', e.unsure, 'Left for review')}
-      </div>
+      ${e.approval === 'mix' ? '' : numField('ce-amount', 'data-src="ce.amount"', 'About how many CE credits did you earn?', e.amount)}
+      ${`<fieldset><legend class="small-legend">Who approved these credits?</legend>
+        <div class="seg">${approvalRadios}</div>
+        <p class="small muted">AASECT-approved credits count hour for hour. Credits from another professional CE body count at half value. If you’re not sure, we’ll review them with you.</p>
+      </fieldset>`}
+      ${e.approval === 'mix' ? `<div class="grid3">
+        ${numField('ce-aasect', 'data-src="ce.aasect"', 'AASECT-approved credits', e.aasect)}
+        ${numField('ce-other', 'data-src="ce.other"', 'From another professional CE body', e.other)}
+        ${numField('ce-unsure', 'data-src="ce.unsure"', 'Not sure who approved them', e.unsure)}
+      </div>` : ''}
     </div>` : ''}
   </fieldset>
-  ${det('by-category', 'I know my hours by category', `
+  ${det('by-category', 'Enter hours by category, if you know them', `
     <p class="small muted">If you can separate Core Knowledge from ${esc(b.trainingLabel)}, or know your live hours, add them here for a more detailed estimate. Leave anything you’re not sure about blank.</p>
     ${hoursQuestion('core', 'Core Knowledge Areas (CKAs)', `Up to ${b.core} hours.`, b.core, 'core knowledge')}
     ${hoursQuestion('skills', b.trainingLabel, `Up to ${b.skills} hours.`, b.skills, 'skills training')}
@@ -296,7 +300,7 @@ function quickResult() {
   const est = [`<li data-testid="core-line"><strong>What you may still need after Core:</strong> ${afterCoreText(pr.afterCore, b)}</li>`];
   if (hasCat && cw.state === 'known') est.push(`<li data-testid="ala-line"><strong>À La Carte only (without Core), based on your answers:</strong> estimated coursework still needed: about <strong>${plural(cw.remaining, 'hour')}</strong> (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `. Estimated cost if purchased at ${esc(cw.cost.rate)} per hour: <strong>${esc(cw.cost.display)}</strong>` : ''}.</li>`);
   const estimate = `<ul class="small result-lines" data-testid="result-lines">${est.join('')}</ul>
-    ${hasCat ? '' : `<p class="small" data-testid="unassigned-note">These hours aren’t assigned to Core Knowledge or ${esc(b.trainingLabel)} yet, so we can’t say which requirements they cover. <button type="button" class="link" data-open-categories>I know my hours by category</button></p>`}`;
+    ${hasCat ? '' : `<p class="small" data-testid="unassigned-note">These hours aren’t assigned to Core Knowledge or ${esc(b.trainingLabel)} yet, so we can’t say which requirements they cover. <button type="button" class="link" data-open-categories>Enter hours by category</button></p>`}`;
   return `<div class="quick-result" data-testid="quick-result">
     <p class="result-h" data-testid="result-h">Here’s what may count toward your education requirements</p>
     ${savingsBlock(pr)}
@@ -577,6 +581,19 @@ function syncQuestion(key) {
   fs.querySelector('[data-unsure]').setAttribute('aria-pressed', String(unsure));
 }
 
+// One CE total plus who approved it maps onto the existing rule: AASECT 1:1, another
+// professional body at half value, unknown approval held for review. "Some of each" uses the split.
+function cePayload() {
+  const e = state.ce;
+  const base = { answer: e.answer };
+  if (e.answer !== 'yes') return base;
+  if (e.approval === 'mix') return { ...base, aasect: e.aasect, other: e.other, unsure: e.unsure };
+  if (e.amount === null || e.amount === undefined) return base;
+  if (e.approval === 'aasect') return { ...base, aasect: e.amount };
+  if (e.approval === 'other') return { ...base, other: e.amount };
+  return { ...base, unsure: e.amount };
+}
+
 // ------------------------------------------------------------------ estimate
 let timer = null, controller = null, seq = 0;
 function requestEstimate(immediate = false) {
@@ -590,7 +607,7 @@ function requestEstimate(immediate = false) {
     try {
       const res = await fetch('/api/track-estimate', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ path: state.path, college: state.college, ce: state.ce, core: state.core, skills: state.skills, liveCore: state.liveCore, liveSkills: state.liveSkills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, additional: state.additional, alaCarte: state.alaCarte }),
+        body: JSON.stringify({ path: state.path, college: state.college, ce: cePayload(), core: state.core, skills: state.skills, liveCore: state.liveCore, liveSkills: state.liveSkills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, additional: state.additional, alaCarte: state.alaCarte }),
       });
       const body = await res.json();
       if (mine !== seq) return;
@@ -682,8 +699,9 @@ $main.addEventListener('change', (ev) => {
     render();
     $main.querySelector(`input[name="path"][value="${t.value}"]`)?.focus();
     requestEstimate(true);
-  } else if (t.name === 'college' || t.name === 'ce' || t.name === 'collegeUnit') {
+  } else if (t.name === 'college' || t.name === 'ce' || t.name === 'collegeUnit' || t.name === 'ceApproval') {
     if (t.name === 'collegeUnit') { state.college.unit = t.value; state.college.amount = null; }
+    else if (t.name === 'ceApproval') state.ce.approval = t.value;
     else state[t.name].answer = t.value;
     const q = $main.querySelector('#prior-q');
     const scrollY = window.scrollY;
