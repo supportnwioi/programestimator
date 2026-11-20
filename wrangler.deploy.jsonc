@@ -12,7 +12,7 @@
     {
       "class_name": "EstimatorContainer",
       "scheduling_policy": "durable_object",
-      "images": { "base": { "image": "registry.cloudflare.com/f6ee97e5a759676ea0d9397f66d028b7/nwioi-estimator@sha256:070abe3cfa292c5429825a87538cdcda6c9b724b38d00b8b504fc4ada6aff937" } }
+      "images": { "base": { "image": "registry.cloudflare.com/f6ee97e5a759676ea0d9397f66d028b7/nwioi-estimator@sha256:9194e31e881267db6eb5aecdf89ee162735e9e09825207058178580642e98170" } }
     }
   ],
   "durable_objects": {
