@@ -472,6 +472,10 @@ test('Track finder (preview): À La Carte builder — one total, quantities only
   await answerPrior(page, { core: 15, skills: 10 });
   await answerAla(page, { where: 'nwioi', supervision: 0, sar: 'no' });
   await settled(page);
+  assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$11,045', 'SAR not added until ticked');
+  assert.equal(await page.isChecked('input[data-ala="sar"]'), false);
+  await page.check('input[data-ala="sar"]');
+  await settled(page);
   assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$11,695');
   assert.equal(await text(page, '[data-testid="ala-card-price"]'), '$11,695', 'card shows the total once selections are made');
   assert.match(await text(page, '[data-track="alaCarte"]'), /Estimated cost if purchased separately/);
@@ -601,6 +605,18 @@ test('Track finder (mobile): two short stacked cards, comfortable tap targets, b
   await page.locator('#prior-result').scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   assert.equal(await page.evaluate(() => document.getElementById('price-bar').classList.contains('is-shown')), true);
+  // Small scrolls back up don't make the bar vanish; it hides only when the cards are back in view.
+  for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -40); await page.waitForTimeout(150); }
+  assert.equal(await page.evaluate(() => document.getElementById('price-bar').classList.contains('is-shown')), true, 'bar stays during small scrolls');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => document.getElementById('price-bar').classList.contains('is-shown')), false, 'hidden with the cards in view');
+  // Opening a flow keeps its heading clear of the bar.
+  await page.click('[data-testid="ala-action"]');
+  await page.waitForTimeout(900);
+  const [headTop, barBottom] = await page.evaluate(() => [document.getElementById('ala-h').getBoundingClientRect().top, document.getElementById('price-bar').getBoundingClientRect().bottom]);
+  assert.ok(headTop >= barBottom, `heading ${headTop} below bar ${barBottom}`);
+  assert.match(await text(page, '#price-bar'), /À La Carte/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
   await shot(page, '13-finder-mobile');
   await page.close();

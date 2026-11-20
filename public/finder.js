@@ -326,7 +326,7 @@ function renderBar() {
   $bar.setAttribute('aria-hidden', String(!(active && !cardsVisible)));
   if (!active) { $bar.innerHTML = ''; lastBarValue = null; return; }
   const ala = result.tracks.alaCarte, core = result.tracks.core;
-  const useAla = state.mode === 'ala' && known(ala.price);
+  const useAla = state.mode === 'ala';
   const t = useAla ? ala : core;
   const label = useAla ? 'Estimated cost with NWIOI' : known(core.price) ? 'Standard NWIOI tuition' : 'Your NWIOI tuition';
   const value = known(t.price) ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
@@ -334,6 +334,7 @@ function renderBar() {
   if (!useAla && core.price.payInFull) parts.push(`Pay in full: ${core.price.payInFull.display}`);
   const comb = result.prior?.combined;
   if (!useAla && comb && result.prior.remaining > 0) parts.push(`Estimated combined cost: ${comb.display}${comb.complete ? '' : '+'}`);
+  if (useAla && !known(ala.price)) parts.push('Your estimate updates as you choose');
   const sub = parts.join(' · ') || 'Planning estimate';
   const name = useAla ? 'À La Carte' : 'Core Program';
   const changed = lastBarValue !== null && lastBarValue !== name + value + sub;
@@ -352,14 +353,31 @@ function renderBar() {
   }
 }
 
-let observer = null;
-function watchCards() {
-  observer?.disconnect();
+// Show the bar once the option cards' price has scrolled away; hide it again only
+// when the cards are back in view below where the bar sits (hysteresis, so small
+// scrolls near the cards don't make it flicker on and off).
+let ticking = false;
+function updateBarVisibility() {
+  ticking = false;
   const grid = $main.querySelector('.opt-grid');
-  if (!grid || !('IntersectionObserver' in window)) { cardsVisible = !grid ? true : false; renderBar(); return; }
-  observer = new IntersectionObserver(([e]) => { cardsVisible = e.isIntersecting; renderBar(); }, { threshold: 0 });
-  observer.observe(grid);
+  let next = cardsVisible;
+  if (!grid) next = true;
+  else {
+    const r = grid.getBoundingClientRect();
+    const barH = $bar.offsetHeight || 90;
+    if (cardsVisible && r.bottom < barH + 20) next = false; // cards have scrolled up behind where the bar sits
+    else if (!cardsVisible && r.top > barH) next = true; // cards fully back in view
+  }
+  if (next !== cardsVisible) { cardsVisible = next; renderBar(); }
 }
+function watchCards() {
+  const grid = $main.querySelector('.opt-grid');
+  if (grid) { const r = grid.getBoundingClientRect(); if (r.bottom < ($bar.offsetHeight || 90) + 20) cardsVisible = false; else if (r.top > ($bar.offsetHeight || 90)) cardsVisible = true; }
+  renderBar();
+}
+const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(updateBarVisibility); } };
+window.addEventListener('scroll', onScroll, { passive: true });
+window.addEventListener('resize', onScroll);
 
 // ------------------------------------------------------------------ rendering
 function withFocus(fn) {

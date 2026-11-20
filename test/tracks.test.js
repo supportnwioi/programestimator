@@ -120,7 +120,13 @@ test('“Recommended for you” only once the answers support it', () => {
 });
 
 test('À La Carte: one total; quantities only; no unit prices or line amounts in the payload', () => {
-  const r = est('sex_therapist', full({ core: 15, skills: 10 }));
+  // SAR answered "No" but not ticked: not in the total.
+  const untick = est('sex_therapist', full({ core: 15, skills: 10 })).tracks.alaCarte;
+  assert.deepEqual([untick.price.display, untick.items.some((x) => x.startsWith('SAR')), untick.sarOffer], ['$11,045', false, 'Add SAR']);
+  // Reported scenario: 10 + 11 CEUs still needed, supervision done, SAR "No" → courses only.
+  const reported = est('sex_therapist', full({ core: 80, skills: 49, supervision: 50 })).tracks.alaCarte;
+  assert.deepEqual([reported.price.display, reported.items], ['$735', ['10 Core Knowledge CEUs', '11 Sex Therapy Skills Training CEUs']]);
+  const r = est('sex_therapist', full({ core: 15, skills: 10, alaCarte: { sar: true } }));
   const a = r.tracks.alaCarte;
   assert.equal(a.name, 'Tier II · À La Carte');
   assert.deepEqual([a.price.display, a.price.complete], ['$11,695', true]);

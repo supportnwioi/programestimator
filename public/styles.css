@@ -372,3 +372,6 @@ body.finder .estimate-bar .bar-btn { background: var(--tan); color: #2b130d; bor
   .options-for { margin-top: 0; }
 }
 .prior-copy { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+/* keep section headings clear of the fixed estimate bar */
+body.finder .flow { scroll-margin-top: 112px; }
+@media (max-width: 760px) { body.finder .flow { scroll-margin-top: 124px; } }

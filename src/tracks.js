@@ -197,7 +197,8 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const sel = {
     coreCeus: qty(input.alaCarte?.coreCeus) ?? suggestion.coreCeus,
     skillsCeus: qty(input.alaCarte?.skillsCeus) ?? suggestion.skillsCeus,
-    sar: sarOffered && (typeof input.alaCarte?.sar === 'boolean' ? input.alaCarte.sar : suggestion.sar),
+    // SAR is included only when the visitor ticks it; answering "No" only highlights the offer.
+    sar: sarOffered && input.alaCarte?.sar === true,
     individualHours: where === 'outside' ? 0 : qty(input.alaCarte?.individualHours) ?? suggestion.individualHours,
     groupSessions: where === 'outside' ? 0 : qty(input.alaCarte?.groupSessions) ?? suggestion.groupSessions,
   };
