@@ -101,7 +101,7 @@ function priceBlock(t, { big = false } = {}) {
     return `<p class="${big ? 'range personal' : 'price-sm'}" data-testid="${big ? 'rec-price' : `price-${t.key}`}">${esc(p.confirmText)}</p>`;
   }
   const partial = p.complete === false ? ' <span class="small muted">so far</span>' : '';
-  return `<p class="price-label-sm small muted">${esc(p.label)}${p.fixed ? ' · fixed package price' : ''}</p>
+  return `<p class="price-label-sm small muted">${esc(p.label)}${p.fixed ? ' · fixed package price' : ' · rounded to the nearest $50'}</p>
     <p class="${big ? 'range' : 'price-sm'}" data-testid="${big ? 'rec-price' : `price-${t.key}`}">${esc(p.display)}${partial}</p>
     ${p.draft ? '<p><span class="chip warn">Draft tuition · preview only, pending NWIOI approval</span></p>' : ''}
     ${t.paymentPlans?.length ? `<ul class="small plans">${t.paymentPlans.map((x) => `<li>or ${esc(x.text)}${x.draft ? ' <span class="chip warn">draft</span>' : ''}</li>`).join('')}</ul>` : ''}`;
@@ -118,23 +118,24 @@ function ctaHtml(t, primary) {
 }
 
 function modularControls(t) {
-  const s = t.selection, r = t.rates;
+  // Units only: per-unit rates and per-line prices are never shown (or sent).
+  const s = t.selection, u = t.units;
   const sug = t.suggestion;
   return `
   <div class="modular-controls" aria-label="What you plan to buy from NWIOI">
     <div class="field"><label for="mod-ceus">CEUs you plan to buy from NWIOI</label>
       <input type="number" id="mod-ceus" data-mod="ceus" min="0" max="${result.benchmarks.education}" step="1" inputmode="numeric" value="${s.ceus ?? ''}" placeholder="Choose">
-      <span class="small muted">${sug.ceus !== null ? `Suggested from your answers: ${sug.ceus}` : 'Choose a number, or review it with admissions.'}${r.ceu ? ` · ${esc(r.ceu)} per CEU` : ''}</span></div>
-    <label class="small" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> Add a SAR${r.sar ? ` (${esc(r.sar)})` : ''}</label>
+      <span class="small muted">${sug.ceus !== null ? `Suggested from your answers: ${sug.ceus}` : 'Choose a number, or review it with admissions.'}</span></div>
+    <label class="small" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> Add a SAR</label>
     ${t.outsideSupervision ? '' : `<div class="grid2">
       <div class="field"><label for="mod-ind">Individual supervision hours</label>
         <input type="number" id="mod-ind" data-mod="individualHours" min="0" step="1" inputmode="numeric" value="${s.individualHours ?? ''}" placeholder="Choose">
-        <span class="small muted">${r.individual ? `${esc(r.individual)} per hour` : 'Rate to be confirmed'}</span></div>
+        <span class="small muted">One-to-one with an NWIOI supervisor</span></div>
       <div class="field"><label for="mod-grp">Group supervision sessions</label>
         <input type="number" id="mod-grp" data-mod="groupSessions" min="0" step="1" inputmode="numeric" value="${s.groupSessions ?? ''}" placeholder="Choose">
-        <span class="small muted">${r.groupSession ? `${esc(r.groupSession)} per ${r.groupSessionHours}-hour session` : 'Rate to be confirmed'}</span></div>
+        <span class="small muted">${u.groupSessionHours} hours each</span></div>
     </div>`}
-    ${t.lines.length ? `<ul class="small lines">${t.lines.map((l) => `<li><span>${esc(l.label)}</span><span>$${l.amount.toLocaleString('en-US')}</span></li>`).join('')}</ul>` : ''}
+    ${t.items.length ? `<p class="small muted" style="margin:8px 0 0">Your estimate includes:</p><ul class="small lines">${t.items.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
   </div>`;
 }
 
@@ -149,7 +150,7 @@ function trackCard(t, recommendedKey) {
     ${rec ? '<span class="chip ok">Recommended for you</span>' : ''}
     <h3>${esc(t.name)}</h3>
     ${priceBlock(t)}
-    ${t.key === 'core' && t.price.amount !== null && t.price.sarOffered ? `<label class="small" style="font-weight:400"><input type="checkbox" data-core-sar ${t.price.sarIncluded ? 'checked' : ''}> Include SAR (${esc(t.price.sarAddOn)})</label><p class="small muted">${esc(t.price.base)} base tuition${t.price.sarIncluded ? ` + ${esc(t.price.sarAddOn)} SAR` : ''}</p>` : ''}
+    ${t.key === 'core' && t.price.amount !== null && t.price.sarOffered ? `<label class="small" style="font-weight:400"><input type="checkbox" data-core-sar ${t.price.sarIncluded ? 'checked' : ''}> Include SAR</label>` : ''}
     ${t.key === 'modular' ? modularControls(t) : ''}
     ${t.notes?.length ? `<ul class="small notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <ul class="small included">${t.included.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
@@ -171,7 +172,7 @@ function resultPanel() {
     <h2 class="rec-name" data-testid="rec-name">${esc(t.name)}</h2>
     ${t.lead ? `<p class="lead">${esc(t.lead)}</p>` : ''}
     <div aria-live="polite" aria-atomic="true">${priceBlock(t, { big: true })}</div>
-    ${t.key === 'core' && t.price.amount !== null ? `<p class="small muted">${esc(t.price.base)} Core tuition${t.price.sarIncluded ? ` + ${esc(t.price.sarAddOn)} SAR` : ''}</p>` : ''}
+    ${t.key === 'core' && t.price.amount !== null && t.price.sarOffered ? `<p class="small muted">${t.price.sarIncluded ? 'Includes a SAR' : 'Without a SAR'}</p>` : ''}
     <h3 class="small-h">Why it fits</h3>
     <ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     ${result.notes.length ? `<ul class="small notes">${result.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
@@ -192,14 +193,38 @@ function compareSection() {
   </section>`;
 }
 
+// The live number: pinned to the top of the screen, updates as answers change.
+let lastBarValue = null;
 function renderBar() {
-  const show = Boolean(state.path && !deciding() && result);
-  $bar.hidden = !show;
-  $bar.setAttribute('aria-hidden', String(!show));
-  if (!show) { $bar.innerHTML = ''; return; }
-  const t = result.tracks[result.recommended];
-  const price = t.price.amount !== null && t.price.amount !== undefined ? t.price.display : t.price.confirmText;
-  $bar.innerHTML = `<div><span class="small muted">${esc(t.name)}</span><strong>${esc(price)}</strong></div>${linkHtml(config.links.scheduling, 'Book a call', 'btn primary')}`;
+  let label = 'Your NWIOI tuition', name = '', value = '—', sub = 'Choose a credential to see your track and price', valueClass = 'muted-value', draft = false;
+  if (deciding()) {
+    label = 'Not sure which credential?'; value = 'Let’s talk'; sub = 'A free admissions call can help you choose'; valueClass = '';
+  } else if (state.path && result) {
+    const t = result.tracks[result.recommended];
+    const known = t.price.amount !== null && t.price.amount !== undefined;
+    name = t.name;
+    label = known ? t.price.label : 'Recommended for you';
+    value = known ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
+    valueClass = known ? '' : 'confirm-value';
+    sub = known ? (t.price.fixed ? 'Fixed package price' : t.price.complete === false ? 'Choose what you’d buy to complete the estimate' : 'Based on what you plan to buy') : 'We’ll confirm your tuition';
+    draft = Boolean(t.price.draft);
+  } else if (state.path) {
+    sub = 'Updating…';
+  }
+  const changed = lastBarValue !== null && lastBarValue !== name + value;
+  lastBarValue = name + value;
+  $bar.innerHTML = `<div class="wrap estimate-inner">
+      <div class="estimate-text" aria-live="polite" aria-atomic="true">
+        <span class="estimate-label">${esc(label)}${name ? ` · <strong>${esc(name)}</strong>` : ''}${draft ? ' <span class="chip draft-chip">Draft</span>' : ''}</span>
+        <span class="estimate-value ${valueClass}" data-testid="bar-price">${esc(value)}</span>
+        <span class="estimate-sub">${esc(sub)}</span>
+      </div>
+      <span class="bar-cta">${linkHtml(config.links.scheduling, 'Book a free admissions call', 'btn bar-btn', 'bar-book')}</span>
+    </div>`;
+  if (changed) {
+    const el = $bar.querySelector('.estimate-value');
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  }
 }
 
 // Re-render result areas while keeping focus/caret in a control the visitor is using.
@@ -223,7 +248,6 @@ function renderResult() {
 }
 
 function render() {
-  $headerBook.innerHTML = linkHtml(config.links.scheduling, 'Book a free admissions call', 'btn small-btn', 'header-book');
   const p = state.path && !deciding() ? pathCfg() : null;
   $main.innerHTML = `
   <section class="intro">

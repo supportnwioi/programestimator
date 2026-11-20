@@ -95,7 +95,22 @@ test('outside supervision is left out of the Modular total and labeled', () => {
   assert.equal(r.tracks.modular.price.label, 'Your estimated cost with NWIOI');
   assert.equal(r.tracks.modular.price.amount, 3450);
   assert.ok(r.tracks.modular.notes.some((n) => /pay your supervisor separately/.test(n)));
-  assert.ok(!r.tracks.modular.lines.some((l) => /supervision/.test(l.label)));
+  assert.ok(!r.tracks.modular.items.some((l) => /supervision/.test(l)));
+});
+
+test('Modular shows units only: no per-unit rates or per-line prices reach the browser', () => {
+  const r = est('sexuality_counselor', { education: 120, supervision: 10, sar: 'no', supervisionWhere: 'nwioi' });
+  const m = r.tracks.modular;
+  assert.deepEqual(m.items, ['30 CEUs', 'SAR', '10 individual supervision hours', '4 group supervision sessions (3 hours each)']);
+  const json = JSON.stringify(m);
+  for (const leak of ['$35', '$195', '$200', '$650', '"rate', 'Rate', '"lines"', '"amount":1', '"amount":3', '"amount":6', '"amount":7']) assert.ok(!json.includes(leak), `leaks ${leak}`);
+  assert.equal(Object.keys(m.price).includes('amount'), true);
+  // Totals are rounded to the nearest $50, so one more CEU doesn't reveal the rate.
+  const a = est('sex_therapist', { education: 70, sar: 'yes', supervisionWhere: 'outside', modular: { ceus: 80 } }).tracks.modular.price.amount;
+  const b = est('sex_therapist', { education: 70, sar: 'yes', supervisionWhere: 'outside', modular: { ceus: 81 } }).tracks.modular.price.amount;
+  assert.equal(a % 50, 0);
+  assert.equal(b % 50, 0);
+  assert.notEqual(b - a, 35, 'a one-CEU change does not reveal the per-CEU rate');
 });
 
 test('NWIOI supervision bought separately: individual hours and group sessions priced separately', () => {
@@ -104,7 +119,7 @@ test('NWIOI supervision bought separately: individual hours and group sessions p
   assert.equal(m.price.label, 'NWIOI estimate');
   assert.deepEqual([m.selection.ceus, m.selection.individualHours, m.selection.groupSessions], [30, 10, 4]);
   assert.equal(m.price.amount, 30 * 35 + 10 * 195 + 4 * 200);
-  assert.ok(m.lines.some((l) => /group sessions \(3 hours each\) × \$200/.test(l.label)));
+  assert.ok(m.items.includes('4 group supervision sessions (3 hours each)'));
 });
 
 test('unknown answers never silently become zero', () => {

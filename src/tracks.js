@@ -11,6 +11,7 @@ import { usableLink } from './links.js';
 export const DEFAULT_CATALOG = JSON.parse(fs.readFileSync(path.join(ROOT, 'config/tracks.json'), 'utf8'));
 
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const MODULAR_ROUND_TO = 50;
 const req = (ruleset, k) => ruleset.requirements.find((r) => r.key === k);
 
 export function benchmarks(ruleset) {
@@ -123,7 +124,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     const amount = k.tuition + (coreSar ? k.sarAddOn : 0);
     core = {
       key: 'core', name: names.core, available: true,
-      price: kVisible ? { amount, display: money(amount), label: 'NWIOI tuition', fixed: true, draft: k.status !== 'approved', base: money(k.tuition), sarAddOn: money(k.sarAddOn), sarIncluded: coreSar, sarOffered: sarNeeded } : { amount: null, confirmText: 'Confirm Core tuition with admissions' },
+      price: kVisible ? { amount, display: money(amount), label: 'NWIOI tuition', fixed: true, draft: k.status !== 'approved', sarIncluded: coreSar, sarOffered: sarNeeded } : { amount: null, confirmText: 'Confirm Core tuition with admissions' },
       paymentPlans: kVisible ? planText(k.paymentPlans, preview) : [],
       included: [`${k.ceus} CEUs of NWIOI coursework`, `Supervision: ${k.supervision.description}`, `Your prior education may cover the remaining ${k.fitCeus} CEUs (admissions verifies content and live-hour coverage)`, sarNeeded ? 'SAR available as an add-on' : 'You said you’ve completed a SAR (admissions will confirm it)'],
       cta: { label: 'Review my prior training', link: booking, viaAdmissions: true },
@@ -153,17 +154,19 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const lines = [];
   const missing = [];
   if (sel.ceus === null) missing.push('ceus');
-  else if (rateVis) lines.push({ label: `${sel.ceus} CEUs × ${money(m.ceuRate.amount)}`, amount: sel.ceus * m.ceuRate.amount });
+  else if (rateVis) lines.push({ label: `${sel.ceus} CEUs`, amount: sel.ceus * m.ceuRate.amount });
   else missing.push('ceuRate');
   if (sel.sar) { if (sarVis) lines.push({ label: 'SAR', amount: m.sar.price }); else missing.push('sarPrice'); }
   if (where !== 'outside') {
     if (sel.individualHours === null || sel.groupSessions === null) missing.push('supervisionQty');
     else if (supVis) {
-      if (sel.individualHours > 0) lines.push({ label: `${sel.individualHours} individual supervision hours × ${money(m.supervision.individualRate)}`, amount: sel.individualHours * m.supervision.individualRate });
-      if (sel.groupSessions > 0) lines.push({ label: `${sel.groupSessions} group sessions (${m.supervision.groupSessionHours} hours each) × ${money(m.supervision.groupSessionRate)}`, amount: sel.groupSessions * m.supervision.groupSessionRate });
+      if (sel.individualHours > 0) lines.push({ label: `${sel.individualHours} individual supervision hour${sel.individualHours === 1 ? '' : 's'}`, amount: sel.individualHours * m.supervision.individualRate });
+      if (sel.groupSessions > 0) lines.push({ label: `${sel.groupSessions} group supervision session${sel.groupSessions === 1 ? '' : 's'} (${m.supervision.groupSessionHours} hours each)`, amount: sel.groupSessions * m.supervision.groupSessionRate });
     } else if (sel.individualHours + sel.groupSessions > 0) missing.push('supervisionRates');
   }
-  const total = lines.reduce((s, l) => s + l.amount, 0);
+  // Shown rounded to the nearest $50, as one total: per-unit rates and per-line
+  // amounts are never sent to the browser, so the rates can't be read off the quote.
+  const total = Math.round(lines.reduce((s, l) => s + l.amount, 0) / MODULAR_ROUND_TO) * MODULAR_ROUND_TO;
   const draftModular = [rateVis && m.ceuRate.status !== 'approved', sarVis && sel.sar && m.sar.status !== 'approved', supVis && where !== 'outside' && m.supervision.status !== 'approved'].some(Boolean);
   const modularLabel = where === 'outside' ? 'Your estimated cost with NWIOI' : 'NWIOI estimate';
   const modularNotes = [];
@@ -178,8 +181,8 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     price: lines.length || modularComplete
       ? { amount: total, display: money(total), label: modularLabel, fixed: false, draft: draftModular, complete: modularComplete }
       : { amount: null, label: modularLabel, confirmText: missing.includes('ceuRate') ? 'Confirm Modular pricing with admissions' : 'Choose what you’d buy to see your estimate' },
-    lines, notes: modularNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
-    rates: { ceu: rateVis ? money(m.ceuRate.amount) : null, sar: sarVis ? money(m.sar.price) : null, individual: supVis ? money(m.supervision.individualRate) : null, groupSession: supVis ? money(m.supervision.groupSessionRate) : null, groupSessionHours: m.supervision.groupSessionHours },
+    items: lines.map((l) => l.label), notes: modularNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
+    units: { groupSessionHours: m.supervision.groupSessionHours },
     included: ['Individual CEU courses you choose', where === 'outside' ? 'Supervision with your outside supervisor (paid separately)' : 'Supervision hours and group sessions as you need them', 'SAR as an add-on if you need one'],
     cta: { label: 'Explore courses', link: usableLink(m.links?.courses, preview) || booking, viaAdmissions: !usableLink(m.links?.courses, preview) },
     secondary: { label: 'Help me choose what I need', link: booking },

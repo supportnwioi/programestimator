@@ -50,9 +50,9 @@ export class EstimatorContainer extends DurableObject {
   async startAndWaitForPort() {
     const container = this.ctx.container;
     const env = this.containerEnv();
-    const fp = await this.fingerprint(env);
-    // A running container keeps the env it started with. When secrets change
-    // (for example a new admin password), restart it so the change takes effect.
+    const fp = await this.fingerprint({ env, image: container.images?.base ?? null });
+    // A running container keeps the env and image it started with. When secrets
+    // or the image change (a new admin password, a new deploy), restart it.
     if (container.running && (await this.ctx.storage.get('envFingerprint')) !== fp) {
       await container.destroy('Configuration changed');
     }

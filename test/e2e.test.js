@@ -328,8 +328,9 @@ async function settled(page) {
 test('Track finder: first screen, booking, no clinical/email/upload questions; detailed estimator is internal', async () => {
   const page = await newPage(BASE);
   assert.equal(await text(page, 'h1'), 'Find the right NWIOI track for you');
-  assert.equal(await page.textContent('[data-testid="header-book"]'), 'Book a free admissions call');
-  assert.equal(await page.getAttribute('[data-testid="header-book"]', 'href'), LINKS.schedulingUrl);
+  assert.equal(await page.textContent('[data-testid="bar-book"]'), 'Book a free admissions call');
+  assert.equal(await page.getAttribute('[data-testid="bar-book"]', 'href'), LINKS.schedulingUrl);
+  assert.equal(await page.textContent('[data-testid="bar-price"]'), '—', 'live estimate bar is visible before any answer');
   const creds = await page.$$eval('input[name="path"]', (els) => els.map((e) => e.parentElement.textContent.trim()));
   assert.deepEqual(creds, ['Sex Therapist', 'Sexuality Counselor', 'Sexuality Educator', 'I’m still deciding']);
   for (const c of ['sex_therapist', 'sexuality_counselor', 'sexuality_educator']) {
@@ -433,8 +434,10 @@ test('Track finder (preview): Modular quote, outside supervision excluded, unkno
   await page.fill('#education-num', '120');
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-name"]'), 'Tier III · Modular');
-  assert.match(await text(page, '[data-track="modular"]'), /individual supervision hours × \$195/);
-  assert.match(await text(page, '[data-track="modular"]'), /group sessions \(3 hours each\) × \$200/);
+  const modular = await text(page, '[data-track="modular"]');
+  assert.match(modular, /\d+ individual supervision hours/);
+  assert.match(modular, /group supervision sessions? \(3 hours each\)/);
+  for (const rate of ['$35', '$195', '$200', 'per hour', 'per CEU', 'per 3-hour']) assert.ok(!modular.includes(rate), `shows rate ${rate}`);
   await page.close();
 });
 
@@ -494,18 +497,26 @@ test('Track finder (public): only approved offers show tuition; drafts go to adm
   await page.close();
 });
 
-test('Track finder: mobile layout', async () => {
+test('Track finder: live estimate bar stays pinned to the top and flashes on change (mobile)', async () => {
   const page = await browser.newPage({ ...devices['iPhone 13'] });
   page.on('pageerror', (e) => { throw e; });
   await page.goto(BASE2);
   await choose(page, 'sexuality_counselor');
   await answerFinder(page, { education: 40, supervision: 0, sar: 'unsure', where: 'help' });
   await settled(page);
-  await page.waitForSelector('#price-bar:not([hidden])');
-  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('price-bar')).position), 'fixed');
-  assert.match(await text(page, '#price-bar'), /Tier I · Comprehensive\$7,950/);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('price-bar')).position), 'sticky');
+  assert.equal(await text(page, '[data-testid="bar-price"]'), '$7,950');
+  assert.match(await text(page, '#price-bar'), /Tier I · Comprehensive/);
+  // Scrolled down to the last question, the bar is still at the top of the screen.
+  await page.locator('input[name="where"][value="outside"]').scrollIntoViewIfNeeded();
+  const top = await page.evaluate(() => document.getElementById('price-bar').getBoundingClientRect().top);
+  assert.ok(Math.abs(top) < 2, `bar top ${top}`);
+  // Changing an answer updates the number and flashes it.
+  await page.check('input[name="where"][value="outside"]');
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="bar-price"]'), '$4,500', '110 CEUs × $35 + $650 SAR');
+  assert.match(await page.getAttribute('[data-testid="bar-price"]', 'class'), /flash/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
-  assert.match(await text(page, '.quick-price'), /We’ve assumed NWIOI for now/);
   await shot(page, '13-finder-mobile');
   await page.close();
 });

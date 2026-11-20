@@ -171,3 +171,29 @@ body.quick .intro p { max-width: 62ch; }
 .lines li { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding: 4px 0; }
 @media (max-width: 900px) { .track-grid { grid-template-columns: 1fr; } }
 .track-card .chip, .quick-price .chip { white-space: normal; }
+
+/* ---------- live estimate bar (pinned to the top) ---------- */
+.estimate-bar { position: sticky; top: 0; z-index: 20; background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 18px rgba(0,0,0,.12); margin-bottom: 20px; }
+body.finder header.site { margin-bottom: 0; }
+.estimate-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-top: 10px; padding-bottom: 10px; }
+.estimate-text { display: grid; grid-template-columns: auto; line-height: 1.2; min-width: 0; }
+.estimate-label { font-size: .85rem; opacity: .92; }
+.estimate-value { font-size: clamp(1.6rem, 4.2vw, 2.3rem); font-weight: 800; letter-spacing: -.01em; margin: 2px 0; border-radius: 8px; padding: 0 4px; margin-left: -4px; }
+.estimate-value.muted-value { opacity: .6; }
+.estimate-value.confirm-value { font-size: clamp(1.05rem, 2.6vw, 1.35rem); }
+.estimate-sub { font-size: .8rem; opacity: .85; }
+.estimate-bar .draft-chip { background: rgba(255,255,255,.2); color: inherit; }
+.estimate-bar .chip.warn { background: rgba(255,255,255,.2); color: inherit; }
+.estimate-bar .bar-btn { background: var(--surface); color: var(--accent); border-color: transparent; font-weight: 600; white-space: nowrap; }
+.estimate-bar .disabled { color: inherit; }
+@keyframes estimate-flash { 0% { background: rgba(255,255,255,.35); transform: scale(1.04); } 100% { background: transparent; transform: scale(1); } }
+.estimate-value.flash { animation: estimate-flash .7s ease-out; }
+@media (prefers-reduced-motion: reduce) { .estimate-value.flash { animation: none; text-decoration: underline; } }
+body.finder .quick-price { top: 96px; }
+@media (max-width: 760px) {
+  body.finder { padding-bottom: 0; }
+  .estimate-inner { gap: 10px; }
+  .estimate-bar .bar-btn { padding: 8px 10px; font-size: .85rem; white-space: normal; text-align: center; max-width: 9.5em; }
+  .estimate-sub { display: none; }
+}
+.bar-cta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
