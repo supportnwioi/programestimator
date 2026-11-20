@@ -5,9 +5,8 @@
   "main": "worker/index.js",
   "compatibility_date": "2026-11-19",
   "observability": { "enabled": true },
-  // DEV SITE: preview mode shows draft prices (labeled) to everyone.
-  // Remove this before using this Worker as the public site.
-  "vars": { "NWIOI_PREVIEW": "1" },
+  // Public site: no preview mode. To preview drafts, sign in as an admin
+  // (or run locally with NWIOI_PREVIEW=1).
   "containers": [
     {
       "class_name": "EstimatorContainer",
