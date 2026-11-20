@@ -70,12 +70,16 @@ Headline **“See what your prior training could save you.”** followed by one 
 1. Headline.
 2. Credential picker.
 3. Two compact option cards, right under the picker. They sit side by side on desktop and stack on mobile.
-   - **Core Program** card: tuition, pay in full, “99 CEUs, supervision, and SAR included”, and **See what my prior training could save**.
-   - **À La Carte** card: “Choose individual courses, supervision, or SAR.” plus **Build my estimate**. The estimated total appears once selections are made.
+   - **Core Program** card: **Package tuition**, pay in full, “99 CEUs, supervision, and SAR included” and **See what my prior training could save**. Once prior coursework is entered, it also shows the CEUs beyond Core’s 99 and their cost through NWIOI, labeled as a planning estimate.
+   - **À La Carte** card: answers “How much coursework do I still need, and what would it cost through NWIOI?”
+     - Before prior coursework is entered, it shows **Estimate what you still need** and **Add prior coursework** instead of a dollar amount.
+     - Afterwards it shows the **estimated CEUs remaining** first, with Core Knowledge and Skills Training gaps listed separately. The **Estimated coursework cost** comes second, labeled as a planning estimate. Example: 61 CEUs × $35 = $2,135.
+     - Then **Add or update my prior coursework**, “Supervision and SAR can be added separately”, and **Build my estimate**.
+   - Both cards use the same prior-coursework inputs. À La Carte’s remaining CEUs = (90 − CKA hours) + (60 − skills hours). Core’s remaining is what’s left after its 99 CEUs.
 4. **Compare full details**, which stays collapsed.
 5. The flow the visitor picked:
    - **Prior training (Core):** just the two education inputs (CKAs, credential-specific skills training) plus the credit helper. The personalized result sits directly beneath them, leading with “Your prior training could save you about $875 in additional coursework.” when the answers support it. That's the counted hours × the planning rate. Then come the remaining CEUs, the combined cost, and **Review my prior training**. The approved marketing paragraph follows the result.
-   - **À La Carte builder:** where to do supervision, supervision completed, SAR, and the quantities to buy. It shows one total and a “See what’s included” list.
+   - **À La Carte builder:** coursework quantities first, defaulting to the estimated remaining CEUs. Then **Optional additions: supervision and SAR**, which are counted only once chosen. It shows one total and a “See what’s included” list. If fewer CEUs are selected than the estimate says may be needed, the total is labeled **Your selected items**.
 
 The sticky estimate bar only slides in once the option cards, which already show the price, have scrolled out of view.
 

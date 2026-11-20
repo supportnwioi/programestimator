@@ -149,6 +149,23 @@ test('À La Carte includes SAR and NWIOI supervision only when selected; outside
   assert.ok(!out.items.some((x) => /supervision/.test(x)));
 });
 
+test('À La Carte coursework: category gaps after prior coursework, at the CEU rate; unknowns unresolved', () => {
+  const k = est('sex_therapist', { core: 60, skills: 29 }).tracks.alaCarte.coursework;
+  assert.deepEqual([k.state, k.remaining, k.remainingCore, k.remainingSkills, k.cost.display], ['known', 61, 30, 31, '$2,135']);
+  const over = est('sex_therapist', { core: 90, skills: 0 }).tracks.alaCarte.coursework;
+  assert.deepEqual([over.remainingCore, over.remainingSkills, over.remaining], [0, 60, 60], 'extra core never fills skills');
+  const u = est('sex_therapist', { core: 60, skills: 'unsure' }).tracks.alaCarte.coursework;
+  assert.deepEqual([u.state, u.remainingCore, u.remainingSkills, u.unsure, u.cost], ['unresolved', 30, null, true, undefined]);
+  assert.equal(est('sex_therapist', { core: 60, skills: 29 }, { preview: false }).tracks.alaCarte.coursework.cost, null, 'no cost while the rate is draft');
+  for (const p of PATHS) assert.equal(est(p, { core: 60, skills: 29 }).tracks.core.price.amount, est(p, {}).tracks.core.price.amount);
+  const fewer = est('sex_therapist', { core: 60, skills: 29, alaCarte: { skillsCeus: 10 } }).tracks.alaCarte;
+  assert.equal(fewer.fewerThanNeeded, true);
+  assert.equal(est('sex_therapist', { core: 60, skills: 29 }).tracks.alaCarte.fewerThanNeeded, false);
+  // Supervision is optional: not counted until NWIOI supervision is chosen.
+  const noWhere = est('sex_therapist', { core: 60, skills: 29, supervision: 0 }).tracks.alaCarte;
+  assert.deepEqual([noWhere.price.display, noWhere.price.complete], ['$2,135', true]);
+});
+
 test('package savings only when both totals cover the same components and quantities', () => {
   const s = PATHS.map((p) => est(p, {}).savings);
   assert.deepEqual([s[0].display, s[0].separately], ['$2,585', '$10,785']);

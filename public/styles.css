@@ -375,3 +375,13 @@ body.finder .estimate-bar .bar-btn { background: var(--tan); color: #2b130d; bor
 /* keep section headings clear of the fixed estimate bar */
 body.finder .flow { scroll-margin-top: 112px; }
 @media (max-width: 760px) { body.finder .flow { scroll-margin-top: 124px; } }
+.opt-label { margin: 6px 0 0; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: .72rem; }
+.opt-ceus { font-size: 1.15rem; margin: 6px 0 0; }
+.opt-ceus strong { font-size: 1.6rem; }
+.opt-beyond { margin: 0 0 4px; }
+.opt-addons { margin: 8px 0 0; }
+.opt-addons .link { padding: 0 2px; }
+.ala-line { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.optional-h { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+[data-testid="ala-coursework-cost"].flash { animation: compare-flash .7s ease-out; }
+body.finder .flow h2[tabindex="-1"]:focus { outline: none; }

@@ -356,7 +356,11 @@ test('Track finder: headline, picker, then both option cards on the first screen
   assert.equal(await text(page, '[data-testid="core-action"]'), 'See what my prior training could save');
   assert.equal(await text(page, '[data-testid="ala-action"]'), 'Build my estimate');
   assert.match(await text(page, '[data-track="alaCarte"]'), /Choose individual courses, supervision, or SAR\./);
-  assert.equal(await page.locator('[data-testid="ala-card-price"]').count(), 0, 'no À La Carte total before selections');
+  assert.equal(await text(page, '[data-testid="ala-remaining"]'), 'Estimate what you still need');
+  assert.equal(await text(page, '[data-testid="ala-prior-action"]'), 'Add prior coursework');
+  assert.equal(await page.locator('[data-testid="ala-coursework-cost"]').count(), 0, 'no dollar amount before prior coursework');
+  assert.match(await text(page, '[data-track="core"]'), /Package tuition\s*\$8,200/);
+  assert.match(await text(page, '[data-track="alaCarte"]'), /Supervision and SAR can be added separately\./);
   // Questions are not shown until a card's action is chosen.
   assert.equal(await page.locator('#core-range, #supervision-range').count(), 0);
   // Bar hidden while the cards (which show the price) are on screen.
@@ -400,7 +404,7 @@ test('Track finder (preview): result sits right under the two inputs; 25 prior C
     await answerPrior(page, { core: 15, skills: 10 });
     await settled(page);
     assert.equal(await text(page, '[data-testid="save-lead"]'), 'Your prior training could save you about $875 in additional coursework.');
-    assert.match(await text(page, '[data-testid="prior-need"]'), /About 26 CEUs remaining\s*Rough planning estimate/);
+    assert.match(await text(page, '[data-testid="prior-need"]'), /About 26 CEUs remaining beyond Core’s 99\s*Rough planning estimate/);
     assert.equal(await text(page, '[data-testid="additional-cost"]'), '$910');
     assert.equal(await text(page, '[data-testid="combined-cost"]'), combined, cred);
     assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
@@ -477,8 +481,8 @@ test('Track finder (preview): À La Carte builder — one total, quantities only
   await page.check('input[data-ala="sar"]');
   await settled(page);
   assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$11,695');
-  assert.equal(await text(page, '[data-testid="ala-card-price"]'), '$11,695', 'card shows the total once selections are made');
-  assert.match(await text(page, '[data-track="alaCarte"]'), /Estimated cost if purchased separately/);
+  assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Estimated cost with NWIOI');
+  assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$4,375', 'card stays on coursework: 125 CEUs');
   assert.equal(await page.isVisible('[data-testid="ala-items"]'), false);
   await page.click('[data-testid="ala-included"] summary');
   assert.deepEqual(await page.$$eval('[data-testid="ala-items"] li', (els) => els.map((e) => e.textContent)),
@@ -594,7 +598,7 @@ test('Track finder (mobile): two short stacked cards, comfortable tap targets, b
   assert.ok(core.left >= 0 && core.right <= 390);
   const h = await page.evaluate(() => document.getElementById('opt-core-h').getBoundingClientRect().top);
   assert.ok(h < 844, `Core heading on the first screen (${h})`);
-  for (const sel of ['[data-testid="core-action"]', '[data-testid="ala-action"]', 'label:has(input[name="path"][value="sexuality_counselor"])']) {
+  for (const sel of ['[data-testid="core-action"]', '[data-testid="ala-prior-action"]', 'label:has(input[name="path"][value="sexuality_counselor"])']) {
     const box = await page.locator(sel).boundingBox();
     assert.ok(box.height >= 44, `${sel} tap target ${box.height}px`);
   }
@@ -619,5 +623,49 @@ test('Track finder (mobile): two short stacked cards, comfortable tap targets, b
   assert.match(await text(page, '#price-bar'), /À La Carte/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
   await shot(page, '13-finder-mobile');
+  await page.close();
+});
+
+test('Track finder (preview): À La Carte card leads with remaining CEUs and coursework cost; Core tuition never moves', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await settled(page);
+  await page.click('[data-testid="ala-prior-action"]');
+  await page.waitForSelector('#core-num');
+  await hours(page, 'core', 60);
+  await hours(page, 'skills', 29);
+  await settled(page);
+  // 30 + 31 = 61 CEUs remaining at $35 → $2,135.
+  assert.equal(await text(page, '[data-testid="ala-remaining"]'), '61 estimated CEUs remaining');
+  assert.equal(await text(page, '[data-testid="ala-split"]'), '30 Core Knowledge · 31 Sex Therapy Skills Training');
+  assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$2,135');
+  const card = (await text(page, '[data-track="alaCarte"]')).replace(/\s+/g, ' ');
+  assert.ok(card.indexOf('61 estimated CEUs remaining') < card.indexOf('$2,135'), 'CEUs first, cost second');
+  assert.match(card, /Estimated coursework cost/);
+  assert.match(card, /estimated for coursework through NWIOI · Planning estimate/);
+  assert.equal(await text(page, '[data-testid="ala-prior-action"]'), 'Add or update my prior coursework');
+  assert.match(await text(page, '[data-testid="core-beyond"]'), /may cover the rest beyond Core’s 99 CEUs\. Planning estimate\./);
+  assert.match(await text(page, '[data-testid="ala-line"]'), /With À La Carte instead: about 61 CEUs remaining \(30 Core Knowledge, 31 sex therapy skills training\), an estimated \$2,135/);
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
+  // Changing prior coursework updates both estimates; Core tuition stays.
+  await hours(page, 'core', 15);
+  await hours(page, 'skills', 10);
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="ala-remaining"]'), '125 estimated CEUs remaining');
+  assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$4,375');
+  assert.match(await text(page, '[data-testid="core-beyond"]'), /Beyond Core’s 99 CEUs: about 26 CEUs, \$910 through NWIOI\. Planning estimate\./);
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
+  // Builder: fewer courses than the estimate → "Your selected items"; supervision and SAR optional.
+  await openMode(page, 'ala');
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Estimated cost with NWIOI');
+  assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$4,375', 'coursework only until supervision or SAR is added');
+  await page.fill('#ala-skills', '10');
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Your selected items');
+  assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$2,975');
+  assert.match(await text(page, '[data-testid="fewer-note"]'), /fewer CEUs than the about 125 you may still need/);
+  assert.match(await text(page, '.optional-h'), /Optional additions: supervision and SAR/);
+  await shot(page, '14-finder-ala-card');
   await page.close();
 });

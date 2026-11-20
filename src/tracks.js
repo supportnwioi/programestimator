@@ -212,7 +212,8 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     else if (n > 0) lines.push({ label: `${n} ${label}`, amount: n * rate, group: 'education' });
   }
   if (sel.sar) { if (sarVis) lines.push({ label: 'SAR (Sexuality Attitude Reassessment)', amount: m.sar.price, group: 'sar' }); else missing.push('sarPrice'); }
-  if (where !== 'outside') {
+  // Supervision is an optional addition: only counted once the visitor chooses NWIOI supervision.
+  if (where === 'nwioi' || where === 'help') {
     if (sel.individualHours === null || sel.groupSessions === null) missing.push('supervisionQty');
     else if (supVis) {
       if (sel.individualHours > 0) lines.push({ label: `${sel.individualHours} hour${sel.individualHours === 1 ? '' : 's'} of individual supervision`, amount: sel.individualHours * m.supervision.individualRate, group: 'supervision' });
@@ -232,11 +233,24 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   if (missing.includes('supervisionRates')) alaNotes.push('Confirm supervision rates for this credential with admissions.');
   if (missing.includes('ceuRate') || missing.includes('sarPrice')) alaNotes.push('Confirm À La Carte pricing with admissions.');
   const alaComplete = !missing.length;
+  // Coursework still needed if bought through À La Carte (no package CEUs): each
+  // category's gap after prior coursework, kept separate. Planning estimate.
+  let coursework;
+  if (ck.state === 'hours' && sk.state === 'hours') {
+    const rc = b.core - ck.hours, rs = b.skills - sk.hours, rem = rc + rs;
+    coursework = { state: 'known', remaining: rem, remainingCore: rc, remainingSkills: rs,
+      cost: rateVis ? { amount: rem * rate, display: money(rem * rate), draft: m.ceuRate.status !== 'approved' } : null };
+  } else {
+    coursework = { state: 'unresolved', remainingCore: ck.state === 'hours' ? b.core - ck.hours : null, remainingSkills: sk.state === 'hours' ? b.skills - sk.hours : null, unsure: [ck, sk].some((a) => a.state === 'unsure') };
+  }
+  const selectedEdu = (sel.coreCeus ?? 0) + (sel.skillsCeus ?? 0);
+  const fewerThanNeeded = coursework.state === 'known' && selectedEdu < coursework.remaining;
   const alaCarte = {
     key: 'alaCarte', name: names.alaCarte,
     price: lines.length || alaComplete
       ? { amount: total, display: money(total), label: 'Estimated cost with NWIOI', fixed: false, draft: draftAla, complete: alaComplete }
       : { amount: null, label: 'Estimated cost with NWIOI', confirmText: missing.includes('ceuRate') ? 'Confirm À La Carte pricing with admissions' : 'Choose what you’d buy to see your estimate' },
+    coursework, fewerThanNeeded,
     items: lines.map((l) => l.label), basedOn, notes: alaNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
     sarOffer: sarOffered ? (sar === 'no' ? 'Add SAR' : 'Add SAR if needed') : null,
     units: { groupSessionHours: m.supervision.groupSessionHours, trainingLabel: b.trainingLabel },
