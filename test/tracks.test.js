@@ -77,9 +77,11 @@ test('what may still be needed after Core: a range from hour totals; Educator ma
   // Skills hours can't reduce the Educator gap: Core already covers all 60.
   const sk = est('sexuality_educator', { core: 0, skills: 40 }).prior.afterCore;
   assert.deepEqual([sk.min, sk.max], [51, 51]);
-  // Core hours beyond what Core covers (39) must fall in the gap: 60 → at most 30 remain.
+  // Self-reported hours may repeat topics or not qualify: the full gap stays the upper end.
   const e60 = est('sexuality_educator', { core: 60, skills: 10 }).prior.afterCore;
-  assert.deepEqual([e60.min, e60.max], [0, 30]);
+  assert.deepEqual([e60.min, e60.max], [0, 51]);
+  const big = est('sexuality_counselor', { total: 106 }).prior.afterCore;
+  assert.deepEqual([big.min, big.max, big.costMax], [0, 51, '$1,785'], '106 hours alone guarantee no reduction');
   // Rough totals: "up to" and a range, never a single promise.
   const tot = est('sexuality_educator', { total: 20 }).prior.afterCore;
   assert.deepEqual([tot.basis, tot.min, tot.max, tot.upTo], ['total', 31, 51, 20]);

@@ -406,7 +406,7 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   assert.match(squash(await text(page, '[data-testid="pending"]')), /4 CE credits pending review/);
   assert.match(squash(await text(page, '[data-testid="unassigned-note"]')), /aren’t assigned to Core Knowledge or Sexuality Counseling Skills Training yet/);
   assert.equal(await page.locator('[data-testid="ala-coursework-cost"], [data-testid="ala-line"]').count(), 0, 'no À La Carte figure from a rough total');
-  assert.match(squash(await text(page, '[data-testid="core-line"]')), /Up to 51 of your prior hours could reduce the coursework you still need: estimated 0–44 hours remaining/, 'rough totals give a range, not a promise (106 hours: at least 7 must fall outside the 99 Core covers)');
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /Up to 51 of your prior hours could reduce the coursework you still need: estimated 0–51 hours remaining\. Estimated cost if purchased at \$35 per hour: \$0–\$1,785\./, 'a rough 106-hour total guarantees no reduction: the full gap stays the upper end');
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
   assert.equal(await page.locator('.quick-result .btn.primary').count(), 1);
   assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
@@ -493,7 +493,7 @@ test('Track finder (preview): what you may still need after Core — Educator 39
   await choose(page, 'sexuality_educator');
   await settled(page);
   // Under the Core offer, before any prior education.
-  assert.match(squash(await text(page, '[data-testid="after-core"]')), /^What you may still need after Core Core covers 39 Core Knowledge and 60 Sexuality Education Skills Training hours, leaving 51 Core Knowledge hours before prior education\. Estimated cost if purchased at \$35 per hour: \$1,785\. With Core tuition: \$8,735 estimated in total\./);
+  assert.match(squash(await text(page, '[data-testid="after-core"]')), /^What you may still need after Core Core covers 39 Core Knowledge and 60 Sexuality Education Skills Training hours, leaving 51 Core Knowledge hours before prior education\. Estimated cost if purchased at \$35 per hour: \$1,785\. Your prior coursework may cover some of these hours\. You can complete any remaining coursework through NWIOI or another provider whose training meets the requirements\. With Core tuition: \$8,735 estimated in total\./);
   // 20 prior Core Knowledge hours: 31–51 hours, $1,085–$1,785.
   await categories(page, 20, 0);
   await settled(page);
@@ -502,6 +502,10 @@ test('Track finder (preview): what you may still need after Core — Educator 39
   assert.match(squash(await text(page, '[data-testid="after-core"]')), /With Core tuition: \$8,035–\$8,735 estimated in total/);
   assert.match(squash(await text(page, '[data-testid="ala-line"]')), /^À La Carte only \(without Core\), based on your answers: estimated coursework still needed: about 130 hours/);
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$6,950', 'Core tuition fixed');
+  assert.equal(squash(await text(page, '[data-track="core"] [data-testid="finish-note"]')), 'Your prior coursework may cover some of these hours. You can complete any remaining coursework through NWIOI or another provider whose training meets the requirements.');
+  await hours(page, 'core', 60);
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /estimated 0–51 hours remaining/, 'upper end stays the full gap');
   // Skills hours can't reduce the Educator gap.
   await hours(page, 'core', 0);
   await hours(page, 'skills', 40);

@@ -140,13 +140,12 @@ export function priorSources(b, rules, college = {}, ce = {}) {
 }
 
 /**
- * What may still be needed after Core, from hour totals only. A curriculum review decides how
- * much prior coursework actually fills the gap, so this is a range:
+ * What may still be needed after Core, from hour totals only. Self-reported hours may repeat
+ * topics or not qualify, so nothing is guaranteed until the coursework is reviewed:
  *   best case  – prior hours fill requirements Core leaves open;
- *   worst case – prior hours repeat what Core already covers (only hours beyond what Core covers
- *                in that category must fall in the gap).
- * With a curriculum mapping, each category is handled on its own; without one, the 51-hour gap
- * isn't split and only an "up to" figure is given.
+ *   upper end  – always the full remaining-hours gap.
+ * With a curriculum mapping, each category is handled on its own (extra hours in one category
+ * never reduce another's gap); without one, the 51-hour gap isn't split.
  */
 export function afterCore(b, core, ck, sk, tot) {
   const m = core.curriculumMapping || null;
@@ -155,7 +154,7 @@ export function afterCore(b, core, ck, sk, tot) {
     coveredCore: m ? m.core : null, coveredSkills: m ? m.skills : null, live: m?.live || null };
   const cat = (total, covered, prior) => {
     const gap = total - covered;
-    return { gap, best: Math.max(0, gap - prior), worst: Math.max(0, gap - Math.max(0, prior - covered)) };
+    return { gap, best: Math.max(0, gap - prior), worst: gap };
   };
   if (m && ck.state === 'hours' && sk.state === 'hours') {
     const c1 = cat(b.core, m.core, ck.hours), c2 = cat(b.skills, m.skills, sk.hours);
@@ -165,7 +164,7 @@ export function afterCore(b, core, ck, sk, tot) {
   const prior = ck.state === 'hours' && sk.state === 'hours' ? ck.hours + sk.hours
     : Math.max(tot.state === 'hours' ? tot.hours : 0, (ck.state === 'hours' ? ck.hours : 0) + (sk.state === 'hours' ? sk.hours : 0));
   if (prior > 0) {
-    const max = Math.max(0, gapTotal - Math.max(0, prior - core.ceus));
+    const max = gapTotal;
     const min = Math.max(0, gapTotal - prior);
     return { ...out, basis: ck.state === 'hours' && sk.state === 'hours' ? 'categories' : 'total', min, max, upTo: Math.min(prior, gapTotal) };
   }

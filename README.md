@@ -116,7 +116,8 @@ Monthly amounts are rounded to the cent, and the final payment absorbs the round
    - **Two remaining-coursework figures, labeled separately** (shown once both category hours are entered):
      - **What you may still need after Core** (shown under the Core offer and in the result), from hour totals only:
        - **Mappings:** Sexuality Educator uses the working split of **39 Core Knowledge + 60 Sexuality Education Skills Training**, which leaves 51 Core Knowledge hours. Therapist and Counselor are pending until their course lists are mapped, so they show the 51-hour gap without a category split.
-       - **It's a range, not a promise.** The best case is that prior hours fill what Core leaves open. The worst case is that they repeat what Core already covers. Only hours beyond what Core covers in a category must fall in the gap.
+       - **It's a range, not a promise.** The best case is that prior hours fill what Core leaves open. The upper end is always the full remaining gap, because self-reported hours may repeat topics or not qualify until the coursework is reviewed. For example, a rough total of 106 hours still shows 0–51.
+       - It always ends with: “Your prior coursework may cover some of these hours. You can complete any remaining coursework through NWIOI or another provider whose training meets the requirements.”
        - **Example:** an Educator with 20 prior Core Knowledge hours gets “Up to 20 of your prior hours could reduce the coursework you still need: estimated 31–51 hours remaining”, with an estimated cost of $1,085–$1,785 if purchased at $35 per hour.
        - Educator skills hours never reduce the gap, because Core covers all 60.
        - A curriculum review confirms how much prior coursework actually fills the gap.

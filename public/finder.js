@@ -215,7 +215,8 @@ function afterCoreText(ac, b) {
   const cost = ac.costMin ? ` <span data-testid="after-core-cost">Estimated cost if purchased at ${esc(ac.rate)} per hour: <strong>${moneyRange(ac.costMin, ac.costMax)}</strong>.</span>` : '';
   const live = ac.live ? ` Core includes ${ac.live.core ?? '—'} live Core Knowledge and ${ac.live.skills ?? '—'} live ${label} hours.` : '';
   const review = ac.min !== ac.max ? ' A curriculum review will confirm how much your prior coursework fills.' : '';
-  return `${gap}${range}${cost}${live}${review}`;
+  const finish = ' <span data-testid="finish-note">Your prior coursework may cover some of these hours. You can complete any remaining coursework through NWIOI or another provider whose training meets the requirements.</span>';
+  return `${gap}${range}${cost}${live}${review}${finish}`;
 }
 
 function afterCoreBlock() {
