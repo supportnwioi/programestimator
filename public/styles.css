@@ -108,3 +108,44 @@ th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line
   .alloc-row { grid-template-columns: 1fr 1fr; }
   .card { padding: 16px; }
 }
+
+/* ---------- one-page quick estimator ---------- */
+.disabled { opacity: .6; cursor: not-allowed; pointer-events: none; }
+.small-btn { padding: 6px 12px; font-size: .9rem; }
+body.quick .intro { margin-bottom: 16px; }
+body.quick .intro p { max-width: 62ch; }
+.quick-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.quick-price { position: sticky; top: 16px; }
+.price-label { font-size: 1rem; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.quick-price .range { white-space: nowrap; font-size: clamp(1.6rem, 2.6vw, 2.05rem); font-weight: 700; line-height: 1.15; margin: 4px 0 8px; letter-spacing: -.01em; }
+.quick-price .range.is-loading { opacity: .55; }
+.quick-price .notes { padding-left: 18px; color: var(--muted); }
+.quick-price .how { margin-top: 12px; color: var(--muted); }
+.seg-wide label { padding: 8px 14px; }
+.hours-q { margin: 0; }
+.hours-q legend { font-size: 1.05rem; }
+.slider-row { display: flex; gap: 14px; align-items: center; margin-top: 8px; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--accent); height: 28px; min-width: 0; }
+.slider-row .num { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.slider-row .num input { width: 88px; }
+.hours-q.unanswered input[type=range] { opacity: .45; }
+.hours-q.is-unsure input[type=range], .hours-q.is-unsure .num input { opacity: .4; }
+.scale { display: flex; justify-content: space-between; margin-top: 2px; }
+.q-foot { margin-top: 8px; }
+.hours-q.unanswered .q-status { color: var(--muted); }
+.chip-btn { font-size: .85rem; padding: 5px 12px; border-radius: 999px; }
+.chip-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.credits { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.credits summary { cursor: pointer; color: var(--accent); font-size: .92rem; }
+.price-bar { display: none; }
+@media (max-width: 760px) {
+  .quick-grid { grid-template-columns: 1fr; }
+  .quick-price { position: static; }
+  body.quick { padding-bottom: 84px; }
+  .price-bar:not([hidden]) { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(0,0,0,.08); }
+  .price-bar strong { display: block; font-size: 1.1rem; }
+  .slider-row { flex-wrap: wrap; }
+  .slider-row input[type=range] { flex-basis: 100%; }
+}
+.quick-price .range.personal { white-space: normal; font-size: clamp(1.4rem, 2.2vw, 1.7rem); }

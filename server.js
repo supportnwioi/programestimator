@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import * as store from './src/store.js';
 import { runEstimate } from './src/estimate.js';
+import { quickEstimate, benchmarks, isPlaceholderUrl } from './src/quickEstimate.js';
 import { reviewDocument, aiAvailable } from './src/extract.js';
 import { checkForChanges, createDraft, updateDraft, approveDraft, setEnabled, validateRuleset } from './src/rulesetAdmin.js';
 
@@ -25,16 +26,38 @@ function publicRuleset(r) {
       areas: q.areas, conditional: q.conditional, alternative: q.alternative && { question: q.alternative.question, label: q.alternative.label },
       individualMin: q.individualMin, minMonths: q.minMonths, countingNotes: q.countingNotes,
     })),
-    outside: (r.outside || []).filter((o) => o.question).map((o) => ({ key: o.key, question: o.question, kind: o.kind, label: o.label })),
+    // Hour-count questions (clinical, counseling or teaching hours) are not asked publicly.
+    outside: (r.outside || []).filter((o) => o.question && o.kind !== 'hours').map((o) => ({ key: o.key, question: o.question, kind: o.kind, label: o.label })),
+    quick: benchmarks(r),
   };
 }
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
+// Placeholder links and unconfirmed prices are never shown to the public. A
+// signed-in admin sees them in preview mode, clearly labeled.
+function publicLinks(s, preview) {
+  const link = (u) => (!isPlaceholderUrl(u) ? { url: u, placeholder: false } : preview && u ? { url: u, placeholder: true } : null);
+  const enrollment = {};
+  for (const [k, u] of Object.entries(s.enrollmentUrls || {})) enrollment[k] = link(u);
+  return { scheduling: link(s.schedulingUrl), contact: link(s.contactUrl), enrollment };
+}
+
 app.get('/api/config', (req, res) => {
   const s = store.settings.get();
+  const preview = Boolean(adminUser(req));
   const paths = ['sex_therapist', 'sexuality_counselor', 'sexuality_educator'].map((k) => store.rulesets.active(k)).filter(Boolean).map(publicRuleset);
-  res.json({ paths, links: { schedulingUrl: s.schedulingUrl, contactUrl: s.contactUrl }, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
+  res.json({ paths, links: publicLinks(s, preview), pricingConfirmed: s.pricingConfirmed === true, preview, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
+});
+
+// One-page estimator: aggregate hours from sliders, priced server-side.
+app.post('/api/quick-estimate', (req, res) => {
+  const r = activeEnabled(req.body?.path);
+  if (!r) return res.status(400).json({ error: 'This certification path is not available right now.' });
+  const b = req.body || {};
+  const val = (v) => (v === 'unsure' ? 'unsure' : v === null || v === undefined || v === '' ? null : Number(v));
+  const result = quickEstimate(r, store.settings.get(), { education: val(b.education), supervision: val(b.supervision), sar: b.sar ?? null }, { preview: Boolean(adminUser(req)) });
+  res.json(result);
 });
 
 function activeEnabled(pathKey) {
@@ -103,7 +126,9 @@ app.post('/api/estimate', (req, res) => {
     pricing: { educationRatePerCeHour: settings.educationRatePerCeHour, supervisionRatePerHour: settings.supervisionRatePerHour, sarPrice: settings.sarPrice, priceRangeBuffer: settings.priceRangeBuffer, offerings: settings.offerings[r.path], settingsUpdatedAt: settings.updatedAt },
     price, calc, public: pub, entryCount: intake.entries.length,
   });
-  res.json({ estimateId: id, ...pub });
+  // Unconfirmed (sample) pricing is never shown to the public as an offer.
+  if (settings.pricingConfirmed !== true && !adminUser(req)) return res.json({ estimateId: id, ...pub, range: null, personalized: true });
+  res.json({ estimateId: id, ...pub, preview: settings.pricingConfirmed !== true });
 });
 
 // ---------------- public: share with admissions (optional) ----------------
@@ -137,10 +162,14 @@ const ADMIN_PASSWORD = process.env.NWIOI_ADMIN_PASSWORD
   || (process.env.NODE_ENV === 'production' ? crypto.randomBytes(12).toString('base64url') : 'nwioi-demo-admin');
 const sessions = new Map();
 const cookie = (req) => Object.fromEntries((req.headers.cookie || '').split(';').map((c) => c.trim().split('=').map(decodeURIComponent)).filter((x) => x[0]));
-function requireAdmin(req, res, next) {
+function adminUser(req) {
   const s = sessions.get(cookie(req).nwioi_admin);
-  if (!s || s.expires < Date.now()) return res.status(401).json({ error: 'Sign in required' });
-  req.admin = s.user;
+  return s && s.expires >= Date.now() ? s.user : null;
+}
+function requireAdmin(req, res, next) {
+  const user = adminUser(req);
+  if (!user) return res.status(401).json({ error: 'Sign in required' });
+  req.admin = user;
   next();
 }
 app.post('/api/admin/login', (req, res) => {
@@ -164,7 +193,13 @@ app.put('/api/admin/settings', requireAdmin, (req, res) => {
   const next = {
     ...cur, educationRatePerCeHour: money(b.educationRatePerCeHour, cur.educationRatePerCeHour), supervisionRatePerHour: money(b.supervisionRatePerHour, cur.supervisionRatePerHour),
     sarPrice: money(b.sarPrice, cur.sarPrice), priceRangeBuffer: money(b.priceRangeBuffer, cur.priceRangeBuffer),
-    schedulingUrl: url(b.schedulingUrl, cur.schedulingUrl), contactUrl: url(b.contactUrl, cur.contactUrl), offerings, updatedAt: new Date().toISOString(), updatedBy: req.admin,
+    schedulingUrl: url(b.schedulingUrl, cur.schedulingUrl), contactUrl: url(b.contactUrl, cur.contactUrl), offerings,
+    pricingConfirmed: typeof b.pricingConfirmed === 'boolean' ? b.pricingConfirmed : cur.pricingConfirmed === true,
+    enrollmentUrls: Object.fromEntries(Object.keys(store.DEFAULT_SETTINGS.enrollmentUrls).map((k) => {
+      const v = b.enrollmentUrls?.[k];
+      return [k, v === '' ? '' : url(v, cur.enrollmentUrls?.[k] || '')];
+    })),
+    updatedAt: new Date().toISOString(), updatedBy: req.admin,
   };
   store.settings.save(next);
   res.json(next);

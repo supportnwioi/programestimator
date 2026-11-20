@@ -15,13 +15,10 @@ const QUESTIONS = {
   tenYearsSexTherapy: 'Do you have 10 or more years of post-degree experience providing sex therapy (averaging 20 hours a week)?',
   hasClinicalDegree: 'Do you have an advanced clinical degree that included psychotherapy training, plus 2 years (master’s) or 1 year (doctoral) of post-degree clinical experience?',
   hasLicense: 'Do you hold a valid license or certificate to practice psychotherapy independently?',
-  clinicalHoursUnderContract: 'About how many hours of clinical treatment of clients with sexual concerns have you provided while under an AASECT supervision contract?',
   aasectMember: 'Are you a current AASECT member?',
   licensedPsychotherapist: 'Do you have a master’s or doctoral degree and hold a license in a discipline that provides psychotherapy?',
   hasDegreeAndExperience: 'Do you have a bachelor’s degree plus 3 years of professional counseling experience, or a master’s/doctoral degree plus 2 years?',
-  counselingHours: 'About how many hours of professional sexuality counseling experience do you have?',
   hasDegree: 'Do you have an academic degree from an accredited college or university?',
-  educationHours: 'About how many hours of professional sexuality education experience do you have?',
 };
 const STEPS = [['path', 'Certification path'], ['intake', 'Your background'], ['review', 'Review'], ['results', 'Estimate']];
 
@@ -247,6 +244,12 @@ function detailList(details) {
   return `<ul>${areaHtml}${rest.map(li).join('')}</ul>`;
 }
 
+// Placeholder links are never shown to the public; admins see them labeled.
+function linkHtml(link, label, cls, testid) {
+  if (!link) return `<span class="${cls} disabled" aria-disabled="true" data-testid="${testid}">${esc(label)} (link coming soon)</span>`;
+  return `<a class="${cls}" href="${esc(link.url)}" target="_blank" rel="noopener" data-testid="${testid}">${esc(label)}</a>${link.placeholder ? ' <span class="chip warn">Placeholder link</span>' : ''}`;
+}
+
 function viewResults() {
   const r = state.result;
   if (!r) return '<p>No estimate yet.</p>';
@@ -258,8 +261,9 @@ function viewResults() {
   return `
   <section class="card price" aria-labelledby="price-h">
     <p class="label" id="price-h">Your estimated NWIOI program cost</p>
-    <p class="range" data-testid="range">${esc(r.range.display)}</p>
-    <p class="small muted">${esc(r.credential)} · preliminary range</p>
+    ${r.range ? `<p class="range" data-testid="range">${esc(r.range.display)}</p>
+    <p class="small muted">${esc(r.credential)} · preliminary range</p>${r.preview ? '<p><span class="chip warn">Admin preview · sample pricing, not shown to students until NWIOI confirms pricing</span></p>' : ''}`
+    : `<p class="range" data-testid="range">Get a personalized estimate</p><p class="small muted">NWIOI will review what you’ve already done and confirm your price.</p>`}
   </section>
   <section class="card" aria-labelledby="left-h">
     <h2 id="left-h">What you appear to have left</h2>
@@ -270,8 +274,8 @@ function viewResults() {
     ${outside.length ? `<h3 style="margin-top:14px">You may also need to complete outside NWIOI</h3><ul class="small">${outside.map((o) => `<li>${esc(o.label)}${o.detail ? ` — ${esc(o.detail)}` : ''}${o.status === 'review' ? ' <span class="chip warn">Not confirmed</span>' : o.status === 'warning' ? ' <span class="chip warn">Please note</span>' : ''}</li>`).join('')}</ul>` : ''}
     <p style="margin-top:14px">NWIOI considers applicable coursework and training you’ve already completed so you can avoid paying to repeat it. This range gives you a ballpark based on the information you provided. During your admissions call, we’ll review what may count toward your certification path, talk through what you still need, and confirm your NWIOI price.</p>
     <div class="cta">
-      <a class="btn primary big" href="${esc(config.links.schedulingUrl)}" target="_blank" rel="noopener" data-testid="schedule">Schedule an admissions call</a>
-      <a href="${esc(config.links.contactUrl)}" target="_blank" rel="noopener" data-testid="ask">Ask admissions a question</a>
+      ${linkHtml(config.links.scheduling, 'Schedule an admissions call', 'btn primary big', 'schedule')}
+      ${linkHtml(config.links.contact, 'Ask admissions a question', '', 'ask')}
     </div>
   </section>
 
@@ -299,7 +303,7 @@ function viewResults() {
     ${r.countingNotes.length ? `<details><summary class="small">How some of your hours were counted</summary><ul class="small">${r.countingNotes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}
   </section>` : ''}
   <section class="card small muted">
-    <p>Estimate based on the published AASECT ${esc(r.pathName)} requirements, version ${esc(r.rulesetVersion)} (${r.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(', ')}). ${info.map((o) => esc(o.label)).join(' ')}. AASECT makes all certification decisions.</p>
+    <p>Estimate based on the published AASECT ${esc(r.pathName)} requirements, version ${esc(r.rulesetVersion)} (${r.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join(', ')}). ${info.length ? `Also required for AASECT certification: ${info.map((o) => esc(o.label.replace(/\.$/, ''))).join('; ')}.` : ''} AASECT makes all certification decisions.</p>
     <div class="row"><button data-action="go" data-step="review">Edit my information</button><button data-action="restart">Start over</button></div>
   </section>`;
 }

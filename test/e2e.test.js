@@ -8,7 +8,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require('playwright');
+const { chromium, devices } = require('playwright');
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'nwioi-e2e-'));
 const PORT = 3200 + Math.floor(Math.random() * 500);
@@ -16,21 +16,32 @@ const BASE = `http://localhost:${PORT}`;
 const SHOTS = process.env.E2E_SCREENSHOTS;
 const sample = (f) => path.join(ROOT, 'samples', f);
 
-let server, browser;
-test.before(async () => {
-  const env = { ...process.env, PORT: String(PORT), NWIOI_DATA_DIR: DATA };
+// Main server: NWIOI has confirmed pricing and set real links (test values).
+// Second server: shipped defaults (sample prices, placeholder links).
+const LINKS = { schedulingUrl: 'https://calendar.nwioi-test.org/admissions', contactUrl: 'mailto:admissions@nwioi-test.org', enrollmentUrls: { sex_therapist: '', sexuality_counselor: '', sexuality_educator: 'https://nwioi-test.org/enroll/educator' } };
+const DATA2 = fs.mkdtempSync(path.join(os.tmpdir(), 'nwioi-e2e-defaults-'));
+const PORT2 = PORT + 1;
+const BASE2 = `http://localhost:${PORT2}`;
+fs.writeFileSync(path.join(DATA, 'settings.json'), JSON.stringify({ pricingConfirmed: true, ...LINKS }));
+
+let server, server2, browser;
+function startServer(port, dataDir) {
+  const env = { ...process.env, PORT: String(port), NWIOI_DATA_DIR: dataDir };
   delete env.ANTHROPIC_API_KEY; // offline extractor for deterministic tests
-  server = spawn('node', ['server.js'], { cwd: ROOT, env, stdio: 'pipe' });
-  await new Promise((res, rej) => { server.stdout.on('data', (d) => String(d).includes('running') && res()); server.on('exit', rej); });
+  const proc = spawn('node', ['server.js'], { cwd: ROOT, env, stdio: 'pipe' });
+  return new Promise((res, rej) => { proc.stdout.on('data', (d) => String(d).includes('running') && res(proc)); proc.on('exit', rej); });
+}
+test.before(async () => {
+  [server, server2] = await Promise.all([startServer(PORT, DATA), startServer(PORT2, DATA2)]);
   browser = await chromium.launch();
 });
-test.after(async () => { await browser?.close(); server?.kill(); });
+test.after(async () => { await browser?.close(); server?.kill(); server2?.kill(); });
 
-async function newPage() {
-  const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
+async function newPage(url = `${BASE}/detailed`, opts = {}) {
+  const page = await browser.newPage({ viewport: { width: 1100, height: 900 }, ...opts });
   page.on('dialog', (d) => d.accept());
   page.on('pageerror', (e) => { throw e; });
-  await page.goto(BASE);
+  await page.goto(url);
   return page;
 }
 const shot = async (page, name) => SHOTS && page.screenshot({ path: path.join(SHOTS, `${name}.png`), fullPage: true });
@@ -97,8 +108,7 @@ test('Sex Therapist — mixed upload + manual entry, follow-ups, duplicate, shar
   await answer(page, 'hasClinicalDegree', 'yes');
   await answer(page, 'hasLicense', 'yes');
   await answer(page, 'aasectMember', 'unsure');
-  await page.fill('input[data-answer="clinicalHoursUnderContract"]', '120');
-  await page.press('input[data-answer="clinicalHoursUnderContract"]', 'Tab');
+  assert.equal(await page.locator('input[data-answer="clinicalHoursUnderContract"]').count(), 0, 'no clinical-hours question');
   await page.click('button[data-action="to-review"]');
 
   // Review: follow-up questions for topics without stated hours.
@@ -134,7 +144,7 @@ test('Sex Therapist — mixed upload + manual entry, follow-ups, duplicate, shar
   assert.equal(r.items[1], 'Sex therapy training — 16 hours');
   assert.equal(r.items[2], 'Supervision — 15 hours');
   assert.equal(r.items[3], 'SAR — Appears outstanding');
-  assert.match(r.text, /300 hours of clinical treatment.*180 hours appear to remain/s);
+  assert.match(r.text, /Also required for AASECT certification: .*300 hours of clinical treatment/s);
   assert.match(r.text, /AASECT membership/);
   // Private pricing is never shown to the student.
   for (const leak of ['$35', '$185', '35/', 'per hour', 'per CE hour', '$650']) assert.ok(!r.text.includes(leak), `leaked ${leak}`);
@@ -142,8 +152,8 @@ test('Sex Therapist — mixed upload + manual entry, follow-ups, duplicate, shar
   assert.equal(r.range, `$${Math.max(0, expected - 500).toLocaleString('en-US')}–$${(expected + 500).toLocaleString('en-US')}`);
 
   // Booking a call needs no sharing: link goes straight to the configured calendar.
-  assert.equal(await page.getAttribute('[data-testid="schedule"]', 'href'), 'https://example.com/nwioi-admissions-calendar');
-  assert.match(await page.getAttribute('[data-testid="ask"]', 'href'), /^mailto:admissions@example.org/);
+  assert.equal(await page.getAttribute('[data-testid="schedule"]', 'href'), LINKS.schedulingUrl);
+  assert.equal(await page.getAttribute('[data-testid="ask"]', 'href'), LINKS.contactUrl);
   // Schedule CTA follows the checklist and explanatory copy.
   const order = await page.evaluate(() => {
     const ck = document.querySelector('[data-testid="checklist"]'), copy = [...document.querySelectorAll('p')].find((p) => p.textContent.startsWith('NWIOI considers')), cta = document.querySelector('[data-testid="schedule"]');
@@ -189,7 +199,7 @@ test('Sexuality Counselor — manual only, with "not sure" answers and a domain 
   await answer(page, 'licensedPsychotherapist', 'yes');
   await answer(page, 'hasDegreeAndExperience', 'yes');
   await answer(page, 'aasectMember', 'yes');
-  await page.check('input[data-answer-unsure="counselingHours"]');
+  assert.equal(await page.locator('[data-answer="counselingHours"], [data-answer-unsure="counselingHours"]').count(), 0, 'no counseling-hours question');
   await page.click('button[data-action="to-review"]');
   const r = await results(page);
   await shot(page, '4-sc-results');
@@ -220,8 +230,6 @@ test('Sexuality Educator — upload only; share documents with separate permissi
   await upload(page, ['sar-certificate.txt', 'ce-certificate-sensate-focus.txt']);
   await answer(page, 'hasDegree', 'yes');
   await answer(page, 'aasectMember', 'yes');
-  await page.fill('input[data-answer="educationHours"]', '1200');
-  await page.press('input[data-answer="educationHours"]', 'Tab');
   await page.click('button[data-action="to-review"]');
   assert.match(await page.textContent('main'), /Offline demo extractor/);
   let r = await results(page);
@@ -283,5 +291,180 @@ test('Admin: pricing changes affect new estimates and are recorded; settings are
   await page.click('button[data-tab="shares"]');
   await page.waitForSelector('text=Sample Student');
   assert.match(await page.textContent('main'), /No \(student did not give permission\)/);
+  await page.close();
+});
+
+// ---------------------------------------------------------------- one-page quick estimator
+const priceText = (page) => page.textContent('[data-testid="range"]');
+const statusOf = (page, key) => page.textContent(`[data-q="${key}"] .q-status`);
+async function waitForRangeChange(page, before) {
+  await page.waitForFunction((b) => { const el = document.querySelector('[data-testid="range"]'); return el && el.textContent !== b && !el.classList.contains('is-loading'); }, before, { timeout: 5000 });
+  return priceText(page);
+}
+
+test('Quick estimator: default page, no clinical questions, no uploads, no email gate', async () => {
+  const page = await newPage(BASE);
+  assert.equal(await page.textContent('h1'), 'What might your NWIOI training cost?');
+  assert.match(await page.textContent('.intro p'), /Already completed some coursework, continuing education, or supervision\?/);
+  // Booking is available from the first screen, without any contact details.
+  assert.equal(await page.getAttribute('[data-testid="header-book"]', 'href'), LINKS.schedulingUrl);
+  const labels = await page.$$eval('input[name="path"]', (els) => els.map((e) => e.parentElement.textContent.trim()));
+  assert.deepEqual(labels, ['Sex Therapist', 'Sexuality Counselor', 'Sexuality Educator', 'I’m still deciding']);
+  for (const p of ['sex_therapist', 'sexuality_counselor', 'sexuality_educator']) {
+    await page.check(`input[name="path"][value="${p}"]`);
+    const text = await page.textContent('main');
+    assert.doesNotMatch(text, /clinical|client|caseload|counseling experience|teaching experience|eligib/i, `${p} asks nothing about clinical/client hours`);
+    assert.equal(await page.locator('input[type=file], input[type=email]').count(), 0);
+    assert.equal(await page.locator('button[type=submit]').count(), 0, 'no submit button');
+  }
+  await page.close();
+});
+
+test('Quick estimator: sliders update the range live; path switch updates benchmarks; zero vs unsure vs unanswered', async () => {
+  const page = await newPage(BASE);
+  await page.check('input[name="path"][value="sex_therapist"]');
+  assert.equal(await page.getAttribute('#education-range', 'max'), '150');
+  assert.equal(await page.getAttribute('#supervision-range', 'max'), '50');
+  // Unanswered: no price yet, and it says what is missing.
+  assert.match(await statusOf(page, 'education'), /Not answered yet/);
+  assert.match(await page.textContent('[data-testid="price-status"]'), /Answer the two hours questions/);
+
+  // Zero is a real answer.
+  await page.click('[data-zero="education"]');
+  await page.click('[data-zero="supervision"]');
+  await page.check('input[name="sar"][value="no"]');
+  await page.waitForSelector('[data-testid="range"]');
+  const zero = await priceText(page);
+  assert.match(zero, /^\$[\d,]+–\$[\d,]+$/);
+  assert.match(await statusOf(page, 'education'), /0 hours/);
+  // Starting from scratch: enrollment isn't configured for this path, so booking is primary.
+  assert.equal(await page.textContent('[data-testid="primary-cta"]'), 'Book an admissions call');
+
+  // "I'm not sure" differs from zero (wider range, lower low end).
+  await page.click('[data-unsure="education"]');
+  const unsure = await waitForRangeChange(page, zero);
+  assert.match(await statusOf(page, 'education'), /You’re not sure/);
+  const low = (t) => Number(t.split('–')[0].replace(/\D/g, ''));
+  const high = (t) => Number(t.split('–')[1].replace(/\D/g, ''));
+  assert.ok(low(unsure) < low(zero) && high(unsure) === high(zero), `${unsure} vs ${zero}`);
+  assert.match(await page.textContent('.quick-price'), /not sure about some of your hours/);
+  await page.click('[data-unsure="education"]'); // toggling off returns to "not answered"
+  assert.match(await statusOf(page, 'education'), /Not answered yet/);
+
+  // Keyboard: focus the slider and press arrow keys; the range changes without a submit.
+  await page.click('[data-zero="education"]');
+  await waitForRangeChange(page, unsure).catch(() => {});
+  const before = await priceText(page);
+  await page.focus('#education-range');
+  for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowRight');
+  const afterKeys = await waitForRangeChange(page, before);
+  assert.equal(await page.inputValue('#education-num'), '40');
+  assert.ok(high(afterKeys) < high(before), 'more hours lowers the estimate');
+  // Typing an approximate value in the number box.
+  await page.fill('#supervision-num', '20');
+  const afterTyping = await waitForRangeChange(page, afterKeys);
+  assert.ok(high(afterTyping) < high(afterKeys));
+  assert.match(await page.textContent('[data-testid="primary-cta"]'), /Book an admissions call/);
+  assert.match(await page.textContent('.quick-price'), /We’ll review what you’ve already done and help you plan what’s left\./);
+  assert.match(await page.textContent('.quick-price'), /This is a ballpark for NWIOI training based on your answers\. We’ll review what may count and confirm your price before you enroll\./);
+  await shot(page, '8-quick-desktop');
+
+  // Credits helper converts semester credits with the ruleset (15 h/credit) and adds once.
+  await page.click('.credits summary');
+  await page.fill('#credits-in', '3');
+  assert.equal(await page.textContent('#credits-out'), '= 45 hours');
+  await page.click('[data-add-credits]');
+  assert.equal(await page.inputValue('#education-num'), '85');
+
+  // Switching path updates benchmarks and clamps answers.
+  await page.check('input[name="path"][value="sexuality_educator"]');
+  assert.equal(await page.getAttribute('#supervision-range', 'max'), '25');
+  assert.equal(await page.inputValue('#supervision-num'), '20');
+  await page.check('input[name="path"][value="sexuality_counselor"]');
+  assert.equal(await page.getAttribute('#supervision-range', 'max'), '30');
+
+  // Both sliders at their maximum: personalized estimate, never $0.
+  await page.fill('#education-num', '150');
+  await page.fill('#supervision-num', '30');
+  await page.waitForFunction(() => document.querySelector('[data-testid="range"]')?.textContent === 'Get a personalized estimate');
+  assert.doesNotMatch(await page.textContent('.quick-price'), /\$0/);
+  await page.close();
+});
+
+test('Quick estimator: starting from scratch with an enrollment page; still deciding', async () => {
+  const page = await newPage(BASE);
+  await page.check('input[name="path"][value="sexuality_educator"]');
+  await page.click('[data-zero="education"]');
+  await page.click('[data-zero="supervision"]');
+  await page.check('input[name="sar"][value="no"]');
+  await page.waitForSelector('[data-testid="range"]');
+  assert.equal(await page.textContent('[data-testid="primary-cta"]'), 'Explore enrollment options');
+  assert.equal(await page.getAttribute('[data-testid="primary-cta"]', 'href'), LINKS.enrollmentUrls.sexuality_educator);
+  assert.equal(await page.getAttribute('[data-testid="secondary-cta"]', 'href'), LINKS.schedulingUrl);
+  // Prior training switches the primary action to booking.
+  await page.fill('#education-num', '30');
+  await page.waitForFunction(() => document.querySelector('[data-testid="primary-cta"]')?.textContent === 'Book an admissions call');
+
+  await page.check('input[name="path"][value="deciding"]');
+  assert.equal(await page.locator('#education-range').count(), 0);
+  assert.equal(await page.textContent('[data-testid="primary-cta"]'), 'Talk through your options');
+  assert.equal(await page.getAttribute('[data-testid="primary-cta"]', 'href'), LINKS.schedulingUrl);
+  await page.close();
+});
+
+test('Quick estimator: mobile layout keeps the estimate visible', async () => {
+  const page = await browser.newPage({ ...devices['iPhone 13'] });
+  page.on('pageerror', (e) => { throw e; });
+  await page.goto(BASE);
+  await page.check('input[name="path"][value="sex_therapist"]');
+  await page.click('[data-zero="education"]');
+  await page.click('[data-zero="supervision"]');
+  await page.waitForSelector('#price-bar:not([hidden])');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById('price-bar')).position), 'fixed');
+  const barText = await page.textContent('#price-bar');
+  assert.match(barText, /Estimated cost with NWIOI\$[\d,]+–\$[\d,]+/);
+  // Changing a value updates the sticky bar.
+  await page.fill('#education-num', '100');
+  await page.waitForFunction((b) => document.getElementById('price-bar').textContent !== b, barText);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
+  await shot(page, '9-quick-mobile');
+  await page.close();
+});
+
+test('Quick estimator: placeholder prices and links never appear as real offers', async () => {
+  // Shipped defaults: sample pricing, example.com/example.org links.
+  const cfg = await (await fetch(`${BASE2}/api/config`)).json();
+  assert.equal(cfg.links.scheduling, null);
+  assert.equal(cfg.links.contact, null);
+  assert.ok(!JSON.stringify(cfg).includes('example.'));
+  const page = await newPage(BASE2);
+  await page.check('input[name="path"][value="sex_therapist"]');
+  await page.click('[data-zero="education"]');
+  await page.click('[data-zero="supervision"]');
+  await page.waitForSelector('[data-testid="range"]');
+  assert.equal(await priceText(page), 'Get a personalized estimate');
+  const html = await page.content();
+  assert.ok(!/\$\d/.test(await page.textContent('main')), 'no dollar figures');
+  assert.ok(!html.includes('example.com') && !html.includes('example.org'), 'no placeholder links');
+  assert.match(await page.textContent('[data-testid="primary-cta"]'), /link coming soon/);
+  // The detailed estimate API also withholds sample prices from the public.
+  const det = await (await fetch(`${BASE2}/api/estimate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ path: 'sex_therapist', intake: { entries: [], answers: {} } }) })).json();
+  assert.equal(det.range, null);
+  assert.equal(det.personalized, true);
+
+  // A signed-in admin sees a clearly labeled preview of sample pricing and placeholder links.
+  await page.goto(`${BASE2}/admin`);
+  await page.fill('#pw', 'nwioi-demo-admin'); // development default when NODE_ENV is not production
+  await page.click('#login button');
+  await page.waitForSelector('#settings');
+  assert.match(await page.textContent('#settings'), /These prices are confirmed by NWIOI/);
+  assert.equal(await page.isChecked('#pc'), false);
+  await page.goto(BASE2);
+  await page.check('input[name="path"][value="sex_therapist"]');
+  await page.click('[data-zero="education"]');
+  await page.click('[data-zero="supervision"]');
+  await page.waitForFunction(() => /^\$/.test(document.querySelector('[data-testid="range"]')?.textContent || ''));
+  assert.match(await page.textContent('.quick-price'), /Admin preview · sample pricing/);
+  assert.match(await page.textContent('.quick-price'), /Placeholder link · admin preview/);
   await page.close();
 });

@@ -34,6 +34,8 @@ function render() {
   $.innerHTML = `<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</div>` + ({ pricing, rulesets, shares, estimates }[tab])();
 }
 
+const placeholderChip = (u) => (!u || /example\.(com|org|net)/i.test(u) ? '<span class="chip warn">Placeholder: students won’t see this link</span>' : '');
+
 function pricing() {
   const s = data.settings;
   return `<section class="card"><h2>Pricing and links</h2>
@@ -45,8 +47,15 @@ function pricing() {
       <div class="field"><label for="sp">SAR price ($)</label><input type="number" min="0" step="0.01" id="sp" name="sarPrice" value="${s.sarPrice}"></div>
       <div class="field"><label for="bf">Price range buffer (± $)</label><input type="number" min="0" step="1" id="bf" name="priceRangeBuffer" value="${s.priceRangeBuffer}"></div>
     </div>
-    <div class="field"><label for="su">Admissions scheduling URL</label><input type="url" id="su" name="schedulingUrl" value="${esc(s.schedulingUrl)}"></div>
-    <div class="field"><label for="cu">Admissions contact link (https:// or mailto:)</label><input type="text" id="cu" name="contactUrl" value="${esc(s.contactUrl)}"></div>
+    <div class="notice ${s.pricingConfirmed ? 'ok' : 'warn'}">
+      <label style="font-weight:600"><input type="checkbox" id="pc" name="pricingConfirmed" ${s.pricingConfirmed ? 'checked' : ''}> These prices are confirmed by NWIOI. Show dollar estimates to students.</label>
+      <p class="small" style="margin:4px 0 0">${s.pricingConfirmed ? 'Students see price ranges.' : 'Off: students see “Get a personalized estimate” instead of a dollar range. While you’re signed in, the estimator shows you sample pricing, labeled as a preview.'}</p>
+    </div>
+    <div class="field"><label for="su">Admissions scheduling URL ${placeholderChip(s.schedulingUrl)}</label><input type="url" id="su" name="schedulingUrl" value="${esc(s.schedulingUrl)}"></div>
+    <div class="field"><label for="cu">Admissions contact link (https:// or mailto:) ${placeholderChip(s.contactUrl)}</label><input type="text" id="cu" name="contactUrl" value="${esc(s.contactUrl)}"></div>
+    <h3>Enrollment pages <span class="muted small">(optional)</span></h3>
+    <p class="small muted">If set, visitors starting from scratch see “Explore enrollment options” for that path. Leave blank to show only booking.</p>
+    <div class="grid3">${Object.entries(PATHS).map(([p, l]) => `<div class="field"><label for="en-${p}">${l}</label><input type="url" id="en-${p}" data-enroll="${p}" value="${esc(s.enrollmentUrls?.[p] || '')}" placeholder="https://"></div>`).join('')}</div>
     <h3>What NWIOI provides</h3>
     <p class="small muted">Requirements NWIOI does not provide for a path are shown to students as “may need to complete outside NWIOI” and left out of the price.</p>
     <table><thead><tr><th>Path</th>${Object.values(REQS).map((l) => `<th>${l}</th>`).join('')}</tr></thead><tbody>
@@ -124,6 +133,9 @@ $.addEventListener('submit', async (ev) => {
     catch (e) { if (e.message !== 'Sign in required') showLogin(e.message); else showLogin('Incorrect password'); }
   } else if (f.id === 'settings') {
     const body = Object.fromEntries(['educationRatePerCeHour', 'supervisionRatePerHour', 'sarPrice', 'priceRangeBuffer', 'schedulingUrl', 'contactUrl'].map((k) => [k, f[k].value]));
+    body.pricingConfirmed = f.pricingConfirmed.checked;
+    body.enrollmentUrls = {};
+    f.querySelectorAll('[data-enroll]').forEach((i) => { body.enrollmentUrls[i.dataset.enroll] = i.value.trim(); });
     body.offerings = {};
     f.querySelectorAll('[data-offer]').forEach((c) => { const [p, r] = c.dataset.offer.split('.'); (body.offerings[p] ??= {})[r] = c.checked; });
     data.settings = await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) });

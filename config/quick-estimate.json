@@ -1,0 +1,18 @@
+{
+  "_about": "Assumptions for the one-page quick estimator. Self-reported hours are treated as hours that MAY count. NWIOI admissions confirms what actually counts.",
+  "educationCredit": {
+    "low": 0.5,
+    "high": 0.9,
+    "_note": "Share of the education hours a visitor reports that may count toward the path's education benchmark. The high end never reaches 1.0, because self-reported hours rarely cover every content area, the per-area minimums and caps, and the live (synchronous) requirements."
+  },
+  "supervisionCredit": {
+    "low": 0.5,
+    "high": 0.9,
+    "_note": "Share of the supervision hours a visitor reports that may count (it must be with an AASECT certified supervisor under contract, with the right individual/group mix)."
+  },
+  "unsureAssumedShareOfBenchmark": 0.5,
+  "_unsureNote": "For 'I'm not sure', the low price assumes they may have done up to this share of the benchmark; the high price assumes none of it counts.",
+  "lowerBoundMinimumShare": 0.5,
+  "_lowerBoundNote": "The admin price-range buffer widens the range, but the lower bound never drops below this share of the most optimistic calculated cost.",
+  "roundTo": 50
+}

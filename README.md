@@ -48,9 +48,47 @@ node --test test/e2e.test.js    # full browser flow for all three paths (Playwri
 | Document review: Claude when configured, offline extractor otherwise | `src/extract.js` |
 | Change detection, draft, validation, approval | `src/rulesetAdmin.js`, `src/sourceText.js` |
 | Duplicate detection, shared by the browser and the server | `public/shared/dedupe.js` |
-| Student UI / admin UI / privacy placeholder | `public/index.html` + `app.js`, `public/admin.html` + `admin.js`, `public/privacy.html` |
+| One-page quick estimator (default page) | `public/index.html` + `quick.js`; calculation in `src/quickEstimate.js`; assumptions in `config/quick-estimate.json` |
+| Detailed course-by-course estimator / admin UI / privacy placeholder | `public/detailed.html` + `detailed.js` (at `/detailed`), `public/admin.html` + `admin.js`, `public/privacy.html` |
 
 AI is used only to summarize documents, extract course details and **explicitly stated** hours, and suggest areas. If the model returns hours that the document doesn't state, they are discarded and the student gets a follow-up question. All counting and pricing is done in application code.
+
+## One-page quick estimator (default page)
+
+This page answers one question: “Given what I’ve already done, what might it cost to finish my training with NWIOI?” The visitor picks a path, or “I’m still deciding”, and then answers three questions:
+
+| Input | Benchmark (from the active, approved ruleset) | States |
+|---|---|---|
+| Education hours (slider + number box) | Core knowledge + skills training hours (150 for every path today) | Not answered / “None yet” (0) / a number / “I’m not sure” |
+| Supervision hours (slider + number box) | The path’s standard supervision hours (Sex Therapist 50, Counselor 30, Educator 25) | Same as above |
+| SAR | n/a | Yes (self-reported) / No / Not sure |
+
+The range updates as answers change, with no submit button. It is calculated server-side by `src/quickEstimate.js` (`POST /api/quick-estimate`) and only the range and short notes are returned. That module is separate from the detailed engine, which needs itemized, per-area entries.
+
+How the estimate responds to each input (`config/quick-estimate.json`):
+
+- **Hours entered** are treated as hours that *may* count. The low price assumes 90% of them count, and the high price assumes 50% count. It never assumes 100%, because self-reported hours rarely cover every content area, per-area minimum and live-training requirement.
+- **More hours** never raises the estimate. This is tested for every path.
+- **“I’m not sure”** widens the range. The high end assumes none of the hours count, and the low end assumes up to half the benchmark might.
+- **Not answered** shows no price until both hours questions are answered.
+- **SAR “No”** includes the SAR price. **“Yes”** leaves it out and notes that NWIOI will confirm it. **“Not sure” or unanswered** puts it in the high end only.
+- **Price buffer:** the admin buffer widens the range. The lower bound never drops below half the most optimistic cost, and is rounded to $50.
+- **Both sliders at their maximum** shows “Get a personalized estimate”, never $0.
+- **Requirements NWIOI doesn’t offer** for a path (Admin → What NWIOI provides) are left out of the price, with a note.
+
+The next step shown depends on the answers:
+
+- **Prior training, or unsure:** “Book an admissions call” is the main button.
+- **Starting from scratch, with an enrollment page set for the path:** “Explore enrollment options” is the main button, and booking comes second.
+- **“I’m still deciding”:** “Talk through your options”, which goes to booking.
+
+Booking is also in the header from the first screen, and no contact details are asked for.
+
+**Safety rules:**
+- **Pricing:** dollar figures appear publicly only after an admin ticks **“These prices are confirmed by NWIOI”** (Admin → Pricing & links). Until then, visitors see “Get a personalized estimate”, on both the quick and detailed estimators.
+- **Links:** placeholder links (`example.com` / `example.org`) are never sent to the public.
+- **Admin preview:** a signed-in admin sees sample pricing and placeholder links, clearly labeled as a preview.
+- **No client-contact questions:** clinical, counseling and teaching hour questions were removed from both the quick and detailed flows.
 
 ## AASECT requirements used (verified 2026-11-19)
 

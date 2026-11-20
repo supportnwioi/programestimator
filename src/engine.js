@@ -199,7 +199,9 @@ export function evaluateOutside(ruleset, answers) {
     if (o.always) { items.push({ key: o.key, label: o.label, status: 'info' }); continue; }
     if (o.kind === 'hours') {
       const n = Number(ans);
-      if (ans === 'unsure' || ans === undefined || ans === '' || Number.isNaN(n)) items.push({ key: o.key, label: o.label, status: 'review' });
+      // These hour counts are no longer asked publicly; list them as general information.
+      if (ans === undefined || ans === null || ans === '') items.push({ key: o.key, label: o.label, status: 'info' });
+      else if (ans === 'unsure' || Number.isNaN(n)) items.push({ key: o.key, label: o.label, status: 'review' });
       else if (n < o.target) items.push({ key: o.key, label: o.label, status: 'remaining', detail: `${round(o.target - n)} hours appear to remain` });
       continue;
     }

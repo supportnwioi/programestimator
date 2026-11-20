@@ -24,6 +24,10 @@ export const DEFAULT_SETTINGS = {
   supervisionRatePerHour: 185,
   sarPrice: 650,
   priceRangeBuffer: 500,
+  // Dollar figures are shown to the public only after NWIOI confirms pricing.
+  pricingConfirmed: false,
+  // Optional per-path program/enrollment pages. Empty = no "Explore enrollment" button.
+  enrollmentUrls: { sex_therapist: '', sexuality_counselor: '', sexuality_educator: '' },
   schedulingUrl: 'https://example.com/nwioi-admissions-calendar',
   contactUrl: 'mailto:admissions@example.org?subject=Question%20about%20my%20NWIOI%20estimate',
   offerings: {
