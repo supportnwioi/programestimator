@@ -419,3 +419,29 @@ body.finder .rows .scholarship { margin: 8px 0 4px; }
   .row-price { align-items: flex-start; text-align: left; }
   body.finder .rows { padding: 14px 16px; }
 }
+
+/* ---------- page one: requirements guide + where you learned it ---------- */
+body.finder .learned { padding-top: 16px; }
+.guide-h { font-size: 1.25rem; margin: 0 0 8px; }
+.guide-table { margin: 0; }
+.guide-table th[scope=row] { font-weight: 400; width: 38%; }
+.guide-table th[scope=row] strong { font-weight: 700; }
+.guide-table thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.sar-note { margin: 8px 0 4px; }
+.areas { margin: 4px 0 10px; padding-left: 22px; columns: 2; column-gap: 24px; }
+.areas li { break-inside: avoid; margin: 2px 0; }
+body.finder details#full-reqs { margin: 6px 0 0; }
+.src-q { margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.q-legend { font-family: var(--serif); font-weight: 400; font-size: 1.12rem; line-height: 1.35; margin-bottom: 4px; }
+.small-legend { font-size: .92rem; margin-bottom: 4px; }
+.follow { margin-top: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: var(--radius); }
+.follow .field input { max-width: 160px; display: block; margin-bottom: 2px; }
+.follow fieldset { margin-bottom: 8px; }
+.result-big { font-size: 1.08rem; margin: 0 0 4px; }
+.result-big strong { color: var(--olive); font-size: 1.2em; }
+.planning-note { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 10px 12px; margin: 10px 0 4px; font-size: .9rem; }
+@media (max-width: 680px) {
+  .areas { columns: 1; }
+  .guide-table th[scope=row] { width: auto; }
+  .grid3 { grid-template-columns: 1fr; }
+}

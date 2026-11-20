@@ -29,6 +29,7 @@ export function benchmarks(ruleset) {
     nonAasectCeMultiplier: ruleset.creditRules.nonAasectCeMultiplier,
     trainingLabel: training.longLabel,
     coreLabel: 'Core Knowledge Areas (CKAs)',
+    coreLiveMin: core.synchronousMin, skillsLiveMin: training.synchronousMin, sarHours: req(ruleset, 'sar')?.hours ?? 14,
   };
 }
 
@@ -89,15 +90,51 @@ function planText(plans, preview) {
  * prior hours that overlap NWIOI's curriculum count once. Without one, the gap is
  * education benchmark − Core CEUs (e.g. 150 − 99 = 51): a rough planning estimate.
  */
+/**
+ * Prior learning from where it was earned. College coursework: class hours, or semester credits
+ * × 15 (3 credits = 45 clock hours). Continuing education: AASECT-approved credits hour for hour,
+ * other professional CE bodies at half value, unsure credits left pending review. Category unknown.
+ */
+export function priorSources(b, rules, college = {}, ce = {}) {
+  const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Number(v));
+  const ca = ['yes', 'no', 'unsure'].includes(college.answer) ? college.answer : null;
+  const ea = ['yes', 'no', 'unsure'].includes(ce.answer) ? ce.answer : null;
+  const unit = college.unit === 'credits' ? 'credits' : 'hours';
+  const amount = num(college.amount);
+  const collegeHours = ca === 'yes' && amount !== null ? (unit === 'credits' ? amount * rules.academicSemesterCreditClockHours : amount) : ca === 'no' ? 0 : null;
+  const aasect = num(ce.aasect), other = num(ce.other), pending = num(ce.unsure);
+  const ceEntered = ea === 'yes' && [aasect, other, pending].some((x) => x !== null);
+  const ceHours = ea === 'yes' ? (ceEntered ? (aasect ?? 0) * rules.aasectCeMultiplier + (other ?? 0) * rules.nonAasectCeMultiplier : null) : ea === 'no' ? 0 : null;
+  const parts = [collegeHours, ceHours].filter((x) => x !== null);
+  const anyHours = parts.length > 0;
+  const rawTotal = parts.reduce((a, x) => a + x, 0);
+  let state;
+  if (ca === null && ea === null) state = 'unanswered';
+  else if (anyHours && rawTotal > 0) state = 'hours';
+  else if ((ca === 'unsure' || ea === 'unsure') || (pending ?? 0) > 0) state = 'unsure';
+  else if (ca === 'no' && ea === 'no') state = 'zero';
+  else if (ca === 'no' && ea === null) state = 'zero';
+  else if (ea === 'no' && ca === null) state = 'zero';
+  else state = 'incomplete';
+  return {
+    state, total: Math.min(Math.round(rawTotal), b.education),
+    college: { answer: ca, unit, amount, hours: collegeHours === null ? null : Math.round(collegeHours) },
+    ce: { answer: ea, aasectCredits: aasect, otherCredits: other, aasectHours: aasect === null ? null : Math.round(aasect * rules.aasectCeMultiplier), otherHours: other === null ? null : Math.round(other * rules.nonAasectCeMultiplier * 10) / 10, pending: pending ?? 0, hours: ceHours === null ? null : Math.round(ceHours) },
+  };
+}
+
 export function priorCoverage(b, core, ck, sk, total = { state: 'unanswered' }) {
   const mapping = core.curriculumMapping || null;
   const gap = b.education - core.ceus;
   const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, rough: !mapping, basis: 'categories' };
   // One self-reported total (no category split): hours that may count overall, and
   // the arithmetic gap beyond Core. Always a rough planning estimate.
+  // A rough total never assigns hours to a category, declares one complete, or says how much
+  // can be skipped: no remaining-CEU or cost estimate from it.
   if (!(ck.state === 'hours' && sk.state === 'hours') && total.state === 'hours') {
-    const counted = Math.min(gap, total.hours);
-    return { ...base, basis: 'total', rough: true, state: 'known', covered: total.hours, reported: total.hours, counted, overlap: total.hours - counted, remaining: gap - counted, remainingCore: null, remainingSkills: null };
+    const assigned = (ck.state === 'hours' ? ck.hours : 0) + (sk.state === 'hours' ? sk.hours : 0);
+    return { ...base, basis: 'total', rough: true, state: 'rough', covered: Math.max(total.hours, assigned), reported: total.hours,
+      knownCore: ck.state === 'hours' ? ck.hours : null, knownSkills: sk.state === 'hours' ? sk.hours : null, remaining: null, remainingCore: null, remainingSkills: null };
   }
   if (ck.state !== 'hours' || sk.state !== 'hours') {
     if (total.state === 'unsure' && ck.state !== 'hours' && sk.state !== 'hours') return { ...base, basis: 'total', state: 'unresolved', knownCore: null, knownSkills: null, unsure: true };
@@ -128,7 +165,12 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const b = benchmarks(ruleset);
   const ck = parseHours(input.core, b.core);
   const sk = parseHours(input.skills, b.skills);
-  const tot = parseHours(input.total, b.education);
+  const hasSources = Boolean(input.college?.answer || input.ce?.answer);
+  const sources = hasSources ? priorSources(b, ruleset.creditRules, input.college, input.ce) : null;
+  const tot = sources
+    ? (sources.state === 'hours' ? { state: 'hours', hours: sources.total } : sources.state === 'zero' ? { state: 'hours', hours: 0 } : sources.state === 'unsure' ? { state: 'unsure' } : { state: 'unanswered' })
+    : parseHours(input.total, b.education);
+  const liveIn = { core: parseHours(input.liveCore, b.core), skills: parseHours(input.liveSkills, b.skills) };
   const sup = parseHours(input.supervision, b.supervision);
   const sar = ['yes', 'no', 'unsure'].includes(input.sar) ? input.sar : null;
   const where = ['nwioi', 'outside', 'help'].includes(input.supervisionWhere) ? input.supervisionWhere : null;
@@ -171,7 +213,13 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const cov = priorCoverage(b, c, ck, sk, tot);
   const dayHours = catalog.trainingDay?.hours || 8;
   const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null,
-    days: cov.state === 'known' && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours };
+    days: (cov.state === 'known' || cov.state === 'rough') && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours,
+    sources,
+    unassigned: cov.basis === 'categories' && cov.state === 'known' && tot.state === 'hours' && tot.hours > cov.covered ? tot.hours - cov.covered : 0,
+    live: {
+      core: liveIn.core.state === 'hours' ? { hours: liveIn.core.hours, min: b.coreLiveMin } : null,
+      skills: liveIn.skills.state === 'hours' ? { hours: liveIn.skills.hours, min: b.skillsLiveMin } : null,
+    } };
   if (cov.state === 'known') {
     const nwioiCeus = Math.min(qty(input.additional?.nwioiCeus) ?? cov.remaining, cov.remaining);
     const outsideCeus = cov.remaining - nwioiCeus;

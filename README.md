@@ -66,24 +66,34 @@ Headline **“Build on the training you’ve already done.”** followed by one 
 | Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours |
 | Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours |
 
-**Page order (one short flow):**
+**Page order:**
 1. Headline and credential picker.
-2. **“About how many hours of relevant training have you already completed?”** This is one optional rough total, with “None yet” and “I’m not sure”.
-   - **I know my hours by category** (collapsed) holds the CKA and skills training inputs and the credit helper.
-   - When both category answers are filled in, they replace the total for a more detailed estimate.
-3. **The result, directly below the question:**
-   - “You may already have 25 hours covered.”
-   - “That’s about three full days of training…” This uses `trainingDay.hours` (8, to confirm) and only appears for at least one day.
-   - Then the planning-estimate lines:
-     - **Core Program:** CEUs beyond its 99, with a rough-estimate label when no curriculum mapping is set.
-     - **À La Carte:** remaining CEUs and cost, shown only with category hours. A total alone can't separate core from skills gaps.
-   - Then the one primary action, **Review my prior training**.
-   - The remaining-coursework split (NWIOI or other institutes) and the combined cost sit behind **Plan your remaining coursework**.
-   - With “I’m not sure”, the coursework review is offered directly and no number is guessed.
-4. **Core Program** and **À La Carte** as two short rows, with “Prior coursework may reduce the additional training you need to take or buy.”
-   - Core: 99 CEUs, supervision, and SAR, at its fixed **Package tuition**.
-   - À La Carte: individual courses or supervision. Its **Estimated coursework cost** appears once category hours are known.
-   - **Compare full details** and **Build an À La Carte estimate** are secondary links.
+2. **AASECT education requirements guide** for the chosen credential:
+   - 90 hours of Core Knowledge Areas, at least 15 live.
+   - 60 hours of the credential’s skills training, at least 30 live.
+   - A note on the 14-hour SAR, separate from the 150 coursework hours.
+   - **See the full education requirements** expands to:
+     - the per-area minimum (3 hours) and cap (20 hours), with both area lists;
+     - the time-sensitive CKAs;
+     - the Therapist couples-counseling provision (16 hours);
+     - the Counselor and Educator rule that at least 30 skills hours be field-specific;
+     - links to AASECT’s Core Knowledge Areas page and the credential’s official requirements page.
+   - All of this comes from the verified rulesets in `config/rulesets/`.
+3. **Where prior learning came from:**
+   - **College coursework:** “Did you take any relevant courses at an accredited college or university?” (Yes / No / I’m not sure).
+     - The prompt is graduate coursework for Sex Therapist (advanced clinical degree), or undergraduate and graduate for Counselor and Educator (bachelor’s minimum). It links to AASECT’s Academic Qualifications page.
+     - If yes, the visitor picks semester credits (× 15 clock hours) or class hours, and can estimate the relevant portion of a course.
+   - **Continuing education:** “Have you earned continuing education credits from sexuality-related training?” (Yes / No / I’m not sure).
+     - If yes, there are fields for AASECT-approved credits (hour for hour), credits from another professional CE body (half value) and unsure credits (pending review). Both types can be entered.
+     - This works with no college coursework.
+   - **I know my hours by category** (collapsed): Core Knowledge, skills training and live hours.
+4. **“Here’s what may count toward your education requirements”**, directly below the questions:
+   - The hours that may count toward the 150, with college, CE and pending lines.
+   - The required planning note: NWIOI helps review transcripts and CE certificates; AASECT makes the final determination.
+   - Then **Review my prior training**.
+   - Hours with an unknown category stay **unassigned**. A rough total never makes a category complete, and never gives a remaining-CEU or cost estimate or says how much can be skipped. Those appear only once both category hours are entered.
+   - “I’m not sure” offers the transcript and CE review directly.
+5. **Core Program** and **À La Carte** as two compact rows, with the comparison and builder behind secondary links.
 
 The sticky estimate bar only slides in once the rows have scrolled away.
 

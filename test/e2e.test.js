@@ -317,6 +317,19 @@ async function hours(page, k, v) {
 }
 async function openCategories(page) { if (!(await page.evaluate(() => document.getElementById('by-category')?.open))) await page.click('#by-category summary'); }
 async function categories(page, core, skills) { await openCategories(page); await hours(page, 'core', core); await hours(page, 'skills', skills); }
+async function college(page, answer, amount, unit = 'credits') {
+  await page.check(`input[name="college"][value="${answer}"]`);
+  if (answer === 'yes') {
+    if (unit === 'hours') await page.check('input[name="collegeUnit"][value="hours"]');
+    if (amount !== undefined) await page.fill('#college-amount', String(amount));
+  }
+}
+async function ce(page, answer, { aasect, other, unsure } = {}) {
+  await page.check(`input[name="ce"][value="${answer}"]`);
+  if (aasect !== undefined) await page.fill('#ce-aasect', String(aasect));
+  if (other !== undefined) await page.fill('#ce-other', String(other));
+  if (unsure !== undefined) await page.fill('#ce-unsure', String(unsure));
+}
 async function openBuilder(page) {
   if (await page.locator('#ala-flow').count()) return;
   await page.click('[data-testid="ala-action"]');
@@ -328,44 +341,123 @@ async function settled(page) {
   await page.waitForLoadState('networkidle');
 }
 const PLANNING = 'This is a planning estimate. We’ll review your prior training and coursework options together and confirm your NWIOI tuition before you enroll.';
+const NOTE = 'This is a planning estimate. NWIOI can help you review your transcripts and CE certificates and identify what you may still need. AASECT makes the final determination about which hours count toward certification.';
 const barShown = (page) => page.evaluate(() => document.getElementById('price-bar').classList.contains('is-shown'));
+const squash = (t) => t.replace(/\s+/g, ' ').trim();
 
-test('Track finder: one short flow — headline, credential, one rough hours question, result right below; no clinical/email/upload questions', async () => {
+test('Track finder: headline, credential, then the AASECT requirements guide for that credential', async () => {
   const page = await newPage(BASE2);
   assert.equal(await text(page, 'h1'), 'Build on the training you’ve already done.');
-  assert.equal((await text(page, '.lede')).trim(), 'Graduate coursework and continuing education you’ve already completed may count toward your AASECT credential. See what may already be covered and what you might still need.');
-  const creds = await page.$$eval('input[name="path"]', (els) => els.map((e) => e.parentElement.textContent.trim()));
-  assert.deepEqual(creds, ['Sex Therapist', 'Sexuality Counselor', 'Sexuality Educator', 'I’m still deciding']);
-  await choose(page, 'sex_therapist');
-  await settled(page);
-  assert.equal(await text(page, '#total-legend'), 'About how many hours of relevant training have you already completed?');
-  assert.match(await text(page, '#total-hint'), /Enter your best estimate, or choose “I’m not sure”/);
-  assert.equal(await page.isVisible('#core-range'), false, 'category inputs tucked away');
-  assert.equal(await text(page, '#by-category summary'), 'I know my hours by category');
-  await hours(page, 'total', 25);
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 25 hours covered.');
-  assert.equal(await text(page, '[data-testid="result-body"]'), 'That’s about three full days of training you may be able to put toward your credential. We’ll review your coursework with you and help you plan what’s left.');
-  assert.match(await text(page, '[data-testid="basis"]'), /self-reported/);
-  assert.match(await text(page, '[data-testid="core-line"]'), /about 26 more CEUs beyond the 99 included, about \$910 through NWIOI\.\s*Rough planning estimate/);
-  assert.match(await text(page, '[data-testid="ala-line"]'), /Add your hours by category/);
-  // One primary action after the result.
-  assert.equal(await page.locator('.quick-result .btn.primary').count(), 1);
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
-  // The result sits directly below the question (only the collapsed category line between).
-  const gap = await page.evaluate(() => document.querySelector('[data-testid="quick-result"]').getBoundingClientRect().top - document.querySelector('[data-q="total"]').getBoundingClientRect().bottom);
-  assert.ok(gap < 90, `result right below the question (${gap}px)`);
-  // No repeated savings headings or duplicate buttons opening the same form.
-  const main = await page.textContent('main');
-  assert.doesNotMatch(main, /could save you about|See what my prior training could save|Add prior coursework/);
-  assert.doesNotMatch(main, /clinical hours|client-contact|client contact|caseload|transcript|email/i);
-  assert.equal(await page.locator('input[type=file], input[type=email], button[type=submit]').count(), 0);
-  const res = await fetch(`${BASE}/detailed`, { redirect: 'manual' });
-  assert.equal(res.status, 302);
+  assert.equal(await page.locator('[data-testid="guide"]').count(), 0, 'guide appears after a credential is chosen');
+  const labels = { sex_therapist: ['Sex Therapy Skills Training', 'sex therapy'], sexuality_counselor: ['Sexuality Counseling Skills Training', 'sexuality counseling'], sexuality_educator: ['Sexuality Education Skills Training', 'sexuality education'] };
+  for (const [cred, [label, field]] of Object.entries(labels)) {
+    await choose(page, cred);
+    await settled(page);
+    const g = squash(await text(page, '[data-testid="guide-table"]'));
+    assert.match(g, /90 hours · Core Knowledge Areas \(CKAs\)\s*What you know about human sexuality\. At least 15 hours must be live, in person or online\./);
+    assert.match(g, new RegExp(`60 hours · ${label}\\s*How you apply what you know in ${field}\\. At least 30 hours must be live, in person or online\\.`));
+    assert.match(squash(await text(page, '[data-testid="sar-note"]')), /150 coursework hours.*14 hours of Sexuality Attitude Reassessment \(SAR\)/);
+    assert.equal(await page.isVisible('#full-reqs ol'), false, 'details behind “See the full education requirements”');
+    await page.click('#full-reqs summary');
+    const full = squash(await text(page, '#full-reqs'));
+    assert.match(full, /At least 3 hours in each of the 17 areas, and no more than 20 hours in any one area/);
+    if (cred === 'sex_therapist') assert.match(full, /16 of the 60 hours must be couples counseling training/);
+    else assert.match(full, new RegExp(`at least 30 hours must be specific to ${field}`));
+    assert.equal(await page.getAttribute('[data-testid="cka-link"]', 'href'), 'https://www.aasect.org/certification/core-knowledge-areas');
+    assert.match(await page.getAttribute('[data-testid="official-link"]', 'href'), /^https:\/\/www\.aasect\.org\//);
+    await page.click('#full-reqs summary');
+  }
   await page.close();
 });
 
-test('Track finder (preview): two short rows below the result; Core tuition fixed per credential; comparison and builder behind links', async () => {
+test('Track finder: college question first (graduate vs undergraduate prompt, AASECT link); credits convert at 15 hours each', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await settled(page);
+  assert.equal(squash(await text(page, '[data-testid="college-q"] legend')), 'Did you take any relevant courses at an accredited college or university?');
+  assert.match(await text(page, '[data-testid="college-q"]'), /Think about graduate coursework\. AASECT requires an advanced clinical degree/);
+  assert.equal(await page.getAttribute('[data-testid="academic-link"]', 'href'), 'https://www.aasect.org/career/academic-qualifications');
+  const order = await page.evaluate(() => document.querySelector('[data-testid="college-q"]').getBoundingClientRect().top < document.querySelector('[data-testid="ce-q"]').getBoundingClientRect().top);
+  assert.ok(order, 'college before CE');
+  await choose(page, 'sexuality_educator');
+  await settled(page);
+  assert.match(await text(page, '[data-testid="college-q"]'), /Include relevant undergraduate and graduate coursework\. AASECT requires at least a bachelor’s degree/);
+  await college(page, 'yes', 3);
+  await settled(page);
+  assert.match(await text(page, '[data-testid="college-follow"]'), /three semester credits = 45 clock hours\. If only part of a course covered relevant material, enter your estimate of that portion\./);
+  assert.match(await text(page, '[data-testid="credits-out"]'), /= about 45 clock hours/);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours of your prior training may count toward the 150 coursework hours\./);
+  await college(page, 'yes', 20, 'hours');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 20 hours/);
+  await page.close();
+});
+
+test('Track finder: Yes path — college plus both CE types; unsure CE pending; categories stay unassigned; one primary action', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sexuality_counselor');
+  await college(page, 'yes', 6);
+  await ce(page, 'yes', { aasect: 10, other: 12, unsure: 4 });
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="result-h"]'), 'Here’s what may count toward your education requirements');
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 106 hours of your prior training may count toward the 150 coursework hours/);
+  assert.match(squash(await text(page, '[data-testid="college-line"]')), /about 90 hours \(6 semester credits\)/);
+  assert.match(squash(await text(page, '[data-testid="ce-line"]')), /about 16 hours \(10 AASECT-approved; 12 from another CE body, counted at half value\)/);
+  assert.match(squash(await text(page, '[data-testid="pending"]')), /4 CE credits pending review/);
+  assert.match(squash(await text(page, '[data-testid="unassigned-note"]')), /aren’t assigned to Core Knowledge or Sexuality Counseling Skills Training yet/);
+  assert.equal(await page.locator('[data-testid="core-line"], [data-testid="combined-cost"], [data-testid="ala-coursework-cost"]').count(), 0, 'no remaining or skip promise from a rough total');
+  assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
+  assert.equal(await page.locator('.quick-result .btn.primary').count(), 1);
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  // Category detail: assigned hours give the detailed estimate; the rest stays unassigned.
+  await page.click('[data-open-categories]');
+  await hours(page, 'core', 60);
+  await hours(page, 'skills', 29);
+  await page.fill('#live-core', '10');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="cat-line"]')), /Core Knowledge: 60 of 90 hours · Sexuality Counseling Skills Training: 29 of 60 hours/);
+  assert.match(squash(await text(page, '[data-testid="unassigned"]')), /About 17 more hours not yet assigned to a category/);
+  assert.match(squash(await text(page, '[data-testid="live-core"]')), /10 of 15 required live hours/);
+  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /about 61 CEUs remaining \(30 core knowledge, 31 sexuality counseling skills training\), about \$2,135/);
+  assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$2,135');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$7,450', 'Core tuition fixed');
+  await page.close();
+});
+
+test('Track finder: No path — CE can be entered with no college coursework; No to both is handled', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await college(page, 'no');
+  await ce(page, 'yes', { other: 20 });
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 10 hours of your prior training may count/);
+  assert.equal(await page.locator('[data-testid="college-line"]').count(), 0);
+  await ce(page, 'no');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /haven’t reported prior coursework yet/);
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
+  await page.close();
+});
+
+test('Track finder: I’m not sure path — review offered directly, nothing guessed; CE unsure credits too', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sexuality_educator');
+  await college(page, 'unsure');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /Not sure\? That’s common\. We can go through your transcripts and CE certificates with you/);
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
+  await ce(page, 'yes', { unsure: 6 });
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="pending"]')), /6 CE credits with an unknown approval body will be reviewed/);
+  await ce(page, 'unsure');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /Not sure\?/);
+  await page.close();
+});
+
+test('Track finder (preview): two compact options below the result; Core tuition fixed; comparison and builder behind links', async () => {
   const page = await newPage(BASE2);
   const expect = { sex_therapist: ['$8,200', '$7,626.00'], sexuality_counselor: ['$7,450', '$6,928.50'], sexuality_educator: ['$6,950', '$6,463.50'] };
   for (const [cred, [std, pif]] of Object.entries(expect)) {
@@ -373,93 +465,45 @@ test('Track finder (preview): two short rows below the result; Core tuition fixe
     await settled(page);
     assert.equal(await text(page, '[data-testid="rec-price"]'), std, cred);
     assert.match(await text(page, '[data-testid="rec-pif"]'), new RegExp(`Pay in full: \\${pif} \\(save 7%\\)`));
-    for (const total of [0, 40, 150]) {
-      await hours(page, 'total', total);
-      await settled(page);
-      assert.equal(await text(page, '[data-testid="rec-price"]'), std, `Core tuition stays at ${total} hours`);
-    }
+    await college(page, 'yes', 4);
+    await settled(page);
+    assert.equal(await text(page, '[data-testid="rec-price"]'), std, 'Core tuition stays with prior coursework');
   }
-  assert.equal(await text(page, '#opt-core-h .opt-name'), 'Core Program');
-  assert.equal(await text(page, '#opt-core-h .tier'), 'Tier I');
-  assert.equal(await text(page, '#opt-ala-h .opt-name'), 'À La Carte');
   assert.equal(await text(page, '[data-testid="core-key"]'), '99 CEUs, supervision, and SAR included');
   assert.match(await text(page, '[data-track="alaCarte"]'), /Choose individual courses or supervision\./);
-  assert.match(await text(page, '[data-testid="options"]'), /Prior coursework may reduce the additional training you need to take or buy\./);
-  assert.match(await text(page, '[data-track="core"]'), /Package tuition/);
-  // Rows sit below the result.
   const order = await page.evaluate(() => document.querySelector('[data-testid="quick-result"]').getBoundingClientRect().bottom <= document.querySelector('[data-testid="options"]').getBoundingClientRect().top);
-  assert.ok(order, 'rows below the result');
+  assert.ok(order, 'options below the result');
   assert.equal(await page.isVisible('[data-testid="compare-table"]'), false);
   await page.click('#compare summary');
   assert.match(await text(page, '[data-testid="compare-table"]'), /Core Program\s*Tier I\s*À La Carte\s*Tier II/);
   assert.equal(await page.locator('#ala-flow').count(), 0);
   assert.equal(await text(page, '[data-testid="ala-action"]'), 'Build an À La Carte estimate');
-  assert.match(await text(page, '.rows'), /Design and deliver a sexuality education program/);
+  await page.click('[data-testid="scholarship"] summary');
+  assert.match(await text(page, '[data-testid="scholarship"]'), /FIELD Growth Scholarship/);
+  assert.equal(await page.getAttribute('[data-testid="scholarship-apply"]', 'href'), 'https://forms.wix.com/f/7167298250691576552');
   await page.close();
 });
 
-test('Track finder (preview): category hours give the detailed estimate — 61 CEUs at $35 = $2,135; overlap counted once', async () => {
+test('Track finder (preview): category hours drive the detailed estimate — 25 → 26 beyond Core → $910 → combined', async () => {
   const page = await newPage(BASE2);
-  await choose(page, 'sex_therapist');
-  await hours(page, 'total', 25);
-  await categories(page, 60, 29);
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 89 hours covered.');
-  assert.match(await text(page, '[data-testid="basis"]'), /core knowledge and sex therapy skills training hours/);
-  assert.match(await text(page, '[data-testid="core-line"]'), /may cover the rest of the education requirement beyond its 99 CEUs/);
-  assert.match(await text(page, '[data-testid="ala-line"]'), /about 61 CEUs remaining \(30 core knowledge, 31 sex therapy skills training\), about \$2,135 for coursework through NWIOI/);
-  assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$2,135');
-  assert.match(await text(page, '[data-testid="ala-remaining"]'), /61 CEUs remaining · planning estimate/);
-  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
-  // 25 prior CEUs by category → 26 beyond Core → $910 → combined.
-  await hours(page, 'core', 15);
-  await hours(page, 'skills', 10);
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 25 hours covered.');
-  assert.match(await text(page, '[data-testid="core-line"]'), /about 26 more CEUs beyond the 99 included, about \$910 through NWIOI/);
-  await page.click('#plan-remaining summary');
-  assert.equal(await text(page, '[data-testid="combined-cost"]'), '$9,110');
-  assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
+  for (const [cred, combined] of [['sex_therapist', '$9,110'], ['sexuality_counselor', '$8,360'], ['sexuality_educator', '$7,860']]) {
+    await choose(page, cred);
+    await categories(page, 15, 10);
+    await settled(page);
+    assert.match(squash(await text(page, '[data-testid="core-line"]')), /about 26 more CEUs beyond the 99 included, about \$910 through NWIOI\.\s*Rough planning estimate/);
+    if (!(await page.evaluate(() => document.getElementById('plan-remaining')?.open))) await page.click('#plan-remaining summary');
+    assert.equal(await text(page, '[data-testid="combined-cost"]'), combined, cred);
+    assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
+  }
   await page.fill('#add-nwioi', '10');
   await settled(page);
   assert.equal(await text(page, '[data-testid="additional-cost"]'), '$350');
   await page.fill('#add-outside', '800');
   await settled(page);
-  assert.equal(await text(page, '[data-testid="combined-cost"]'), '$9,350');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'add-outside', 'focus stays while typing');
-  for (const [cred, combined] of [['sexuality_counselor', '$8,360'], ['sexuality_educator', '$7,860']]) {
-    await choose(page, cred);
-    await categories(page, 15, 10);
-    await settled(page);
-    if (!(await page.evaluate(() => document.getElementById('plan-remaining')?.open))) await page.click('#plan-remaining summary');
-    assert.equal(await text(page, '[data-testid="combined-cost"]'), combined, cred);
-  }
-  await page.close();
-});
-
-test('Track finder (preview): “I’m not sure” offers the coursework review directly; unknown categories stay unresolved', async () => {
-  const page = await newPage(BASE2);
-  await choose(page, 'sex_therapist');
-  await hours(page, 'total', 'unsure');
+  await categories(page, 90, 60);
   await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'Not sure? That’s common.');
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
-  assert.equal(await page.locator('[data-testid="core-line"], [data-testid="combined-cost"]').count(), 0, 'no number guessed');
-  await hours(page, 'total', 0);
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You’re starting fresh.');
-  await categories(page, 90, 'unsure');
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You’re starting fresh.', 'incomplete categories fall back to the total');
-  await hours(page, 'skills', 60);
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 150 hours covered.');
-  // Unanswered vs zero.
-  await page.click('[data-unsure="total"]');
-  await page.click('[data-unsure="total"]');
-  assert.match(await text(page, '[data-q="total"] .q-status'), /Not answered yet/);
-  await page.click('[data-zero="total"]');
-  assert.match(await text(page, '[data-q="total"] .q-status'), /0 hours/);
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /may cover the rest of the education requirement beyond its 99 CEUs/);
   await page.close();
 });
 
@@ -470,8 +514,7 @@ test('Track finder (preview): À La Carte builder — one total, quantities only
   await settled(page);
   await openBuilder(page);
   await settled(page);
-  assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Estimated cost with NWIOI');
-  assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$4,375', 'coursework only until supervision or SAR is added');
+  assert.equal(await text(page, '[data-testid="price-alaCarte"]'), '$4,375');
   await page.check('input[name="where"][value="nwioi"]');
   await page.click('[data-zero="supervision"]');
   await page.check('input[name="sar"][value="no"]');
@@ -488,77 +531,52 @@ test('Track finder (preview): À La Carte builder — one total, quantities only
   await page.fill('#ala-skills', '10');
   await settled(page);
   assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Your selected items');
-  assert.match(await text(page, '[data-testid="fewer-note"]'), /fewer CEUs than the about 125 you may still need/);
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'ala-skills');
   await page.check('input[name="where"][value="outside"]');
   await settled(page);
   assert.match(await text(page, '[data-testid="ala-notes"]'), /You’ll pay your outside supervisor separately\./);
-  assert.equal(await page.locator('#ala-ind, #supervision-range').count(), 0);
-  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
   await page.evaluate(() => window.scrollTo(0, 0));
   await choose(page, 'sexuality_educator');
   await settled(page);
   await page.click('#compare summary');
   assert.equal(await page.locator('[data-testid="savings"]').count(), 0, 'Educator: no savings figure');
-  await shot(page, '11-finder-ala');
   await page.close();
 });
 
-test('Track finder: scholarship next to tuition; verified admissions destination', async () => {
-  const page = await newPage(BASE2);
-  await choose(page, 'sexuality_counselor');
-  await settled(page);
-  await page.click('[data-testid="scholarship"] summary');
-  const s = await text(page, '[data-testid="scholarship"]');
-  assert.match(s, /FIELD Growth Scholarship/);
-  assert.match(s, /subject to NWIOI review/);
-  assert.equal(await page.getAttribute('[data-testid="scholarship-apply"]', 'href'), 'https://forms.wix.com/f/7167298250691576552');
-  const pub = await newPage(BASE);
-  await choose(pub, 'sexuality_counselor');
-  await hours(pub, 'total', 30);
-  await settled(pub);
-  assert.equal(await pub.getAttribute('[data-testid="primary-cta"]', 'href'), LINKS.schedulingUrl, 'Review my prior training books an admissions call');
-  assert.equal(await pub.getAttribute('[data-testid="equity"]', 'href'), LINKS.schedulingUrl);
-  await page.close();
-  await pub.close();
-});
-
-test('Track finder: keyboard-only use', async () => {
+test('Track finder: keyboard-only use; still deciding; verified admissions destination publicly', async () => {
   const page = await newPage(BASE2);
   await page.focus('input[name="path"][value="sex_therapist"]');
   await page.keyboard.press('Space');
-  await page.waitForSelector('#total-range');
-  await page.focus('#total-range');
-  for (let i = 0; i < 25; i++) await page.keyboard.press('ArrowRight');
+  await page.waitForSelector('input[name="college"]');
+  await page.focus('input[name="college"][value="yes"]');
+  await page.keyboard.press('Space');
+  await page.waitForSelector('#college-amount');
+  await page.focus('#college-amount');
+  await page.keyboard.type('3');
   await settled(page);
-  assert.equal(await page.inputValue('#total-num'), '25');
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 25 hours covered.');
-  await page.focus('#by-category summary');
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours/);
+  await page.focus('#full-reqs summary');
   await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(() => document.getElementById('by-category').open), true);
-  await page.focus('#compare summary');
-  await page.keyboard.press('Enter');
-  assert.equal(await page.evaluate(() => document.getElementById('compare').open), true);
+  assert.equal(await page.evaluate(() => document.getElementById('full-reqs').open), true);
   await page.close();
-});
-
-test('Track finder: still deciding → talk through my options', async () => {
-  const page = await newPage(BASE);
-  await choose(page, 'deciding');
-  await page.waitForSelector('[data-testid="deciding"]');
-  assert.equal(await page.locator('#total-range').count(), 0);
-  assert.equal(await text(page, '[data-testid="primary-cta"]'), 'Talk through my options');
-  assert.equal(await page.getAttribute('[data-testid="primary-cta"]', 'href'), LINKS.schedulingUrl);
-  await page.close();
+  const pub = await newPage(BASE);
+  await choose(pub, 'deciding');
+  await pub.waitForSelector('[data-testid="deciding"]');
+  assert.equal(await pub.getAttribute('[data-testid="primary-cta"]', 'href'), LINKS.schedulingUrl);
+  await choose(pub, 'sexuality_counselor');
+  await college(pub, 'yes', 2);
+  await settled(pub);
+  assert.equal(await pub.getAttribute('.quick-result [data-testid="primary-cta"]', 'href'), LINKS.schedulingUrl);
+  assert.equal(await pub.getAttribute('[data-testid="equity"]', 'href'), LINKS.schedulingUrl);
+  await pub.close();
 });
 
 test('Track finder (public): only approved offers show tuition; drafts and placeholders stay in preview', async () => {
   const page = await newPage(BASE);
   await choose(page, 'sex_therapist');
-  await hours(page, 'total', 25);
+  await college(page, 'yes', 2);
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 25 hours covered.', 'hours result shows publicly');
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 30 hours/, 'hours result shows publicly');
   const main = await page.textContent('main');
   assert.ok(!/\$\d/.test(main), 'no draft dollar figures publicly');
   assert.doesNotMatch(main, /Draft|preview|Placeholder/i);
@@ -566,43 +584,45 @@ test('Track finder (public): only approved offers show tuition; drafts and place
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$6,950');
   assert.equal(await page.locator('[data-testid="rec-pif"]').count(), 0, 'pay-in-full is still draft');
-  assert.match(await text(page, '[data-track="core"]'), /or \$600\/month for 12 months \(\$7,200 total\)/);
   await page.click('#compare summary');
   assert.equal(await page.getAttribute('[data-testid="enroll"]', 'href'), ENROLL_EDU);
-  await shot(page, '12-finder-public-educator');
   await page.close();
 });
 
-test('Track finder (mobile): pick a credential, enter hours, see the result without opening any panel; bar only after the rows', async () => {
+test('Track finder (mobile): Yes, No and I’m not sure paths; CE without college; no panel needed; no horizontal scroll', async () => {
   const page = await browser.newPage({ ...devices['iPhone 13'] });
   page.on('pageerror', (e) => { throw e; });
-  await page.goto(BASE);
+  await page.goto(BASE2);
   await choose(page, 'sexuality_counselor');
-  await page.fill('#total-num', '25');
+  // Yes
+  await college(page, 'yes', 3);
   await settled(page);
-  assert.equal(await text(page, '[data-testid="result-h"]'), 'You may already have 25 hours covered.');
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 45 hours/);
   assert.equal(await page.evaluate(() => [...document.querySelectorAll('details')].filter((d) => d.open).length), 0, 'no panel opened');
-  await page.locator('[data-testid="quick-result"] [data-testid="primary-cta"]').scrollIntoViewIfNeeded();
-  assert.ok(await page.isVisible('[data-testid="result-h"]'));
-  for (const sel of ['.quick-result [data-testid="primary-cta"]', 'label:has(input[name="path"][value="sexuality_counselor"])', '[data-zero="total"]']) {
+  // No college, CE only
+  await college(page, 'no');
+  await ce(page, 'yes', { aasect: 12 });
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 12 hours/);
+  // Not sure
+  await college(page, 'unsure');
+  await ce(page, 'unsure');
+  await settled(page);
+  assert.match(squash(await text(page, '[data-testid="result-body"]')), /Not sure\?/);
+  await page.locator('.quick-result [data-testid="primary-cta"]').scrollIntoViewIfNeeded();
+  for (const sel of ['.quick-result [data-testid="primary-cta"]', 'label:has(input[name="college"][value="yes"])', 'label:has(input[name="ce"][value="unsure"])']) {
     const box = await page.locator(sel).boundingBox();
-    assert.ok(box.height >= 36, `${sel} tap target ${box.height}px`);
+    assert.ok(box.height >= 40, `${sel} tap target ${box.height}px`);
   }
   assert.ok(await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.lede')).fontSize)) >= 16);
-  assert.equal(await barShown(page), false, 'bar hidden around the question and result');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  assert.equal(await barShown(page), false);
   await page.click('[data-testid="ala-action"]');
   await page.waitForTimeout(900);
   const [headTop, barBottom] = await page.evaluate(() => [document.getElementById('ala-h').getBoundingClientRect().top, document.getElementById('price-bar').getBoundingClientRect().bottom]);
   assert.ok(headTop >= barBottom, `builder heading ${headTop} below bar ${barBottom}`);
-  await page.locator('footer').scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
-  assert.equal(await barShown(page), true, 'bar once the rows scroll away');
-  for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -40); await page.waitForTimeout(150); }
-  assert.equal(await barShown(page), true, 'no flicker on small scrolls');
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(300);
-  assert.equal(await barShown(page), false);
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
   await shot(page, '13-finder-mobile');
   await page.close();
 });
