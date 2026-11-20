@@ -260,7 +260,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
       'SAR included',
       ...c.highlights,
     ],
-    cta: { label: 'Review my prior training', link: booking },
+    cta: { label: 'Inquire About Training', link: booking },
     secondary: { label: 'Explore the NWIOI course library', link: library },
     enroll: enrollLink,
     extraLinks: [['Meet your supervisors', c.links?.supervisors], ['See a sample training weekend', c.links?.sampleWeekend]]
@@ -384,7 +384,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
     units: { groupSessionHours: m.supervision.groupSessionHours, trainingLabel: b.trainingLabel },
     included: ['The individual courses you choose', where === 'outside' ? 'Supervision with your outside supervisor (paid separately)' : 'NWIOI supervision hours and group sessions as you need them', 'SAR if you need one'],
     cta: { label: 'Explore the NWIOI course library', link: usableLink(m.links?.courses, preview) || library },
-    secondary: { label: 'Book a free admissions call', link: booking },
+    secondary: { label: 'Inquire About Training', link: booking },
   };
 
   // ---- Package savings: only when buying the same components and quantities separately.

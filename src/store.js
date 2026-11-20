@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS = {
   supervisionRatePerHour: 185,
   sarPrice: 650,
   priceRangeBuffer: 500,
-  schedulingUrl: 'https://example.com/nwioi-admissions-calendar',
+  schedulingUrl: 'https://student.nwioi.com/inquire',
   contactUrl: 'mailto:admissions@example.org?subject=Question%20about%20my%20NWIOI%20estimate',
   offerings: {
     sex_therapist: { core: true, training: true, supervision: true, sar: true },

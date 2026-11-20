@@ -33,7 +33,7 @@ Use **Core Program** and **À La Carte** as the main headings, with "Tier I" and
 
 > **See how far your prior training can take you.**
 > NWIOI Core includes 99 CEUs, supervision for your credential, and SAR. Graduate coursework and continuing education you've already completed may cover some or all of the remaining education. If you need additional courses, you can choose from the NWIOI library or learn with other institutes. We encourage you to learn from a range of educators and perspectives, and we'll help you find courses that fit the areas you still need.
-> **[Review my prior training]**  [Explore the NWIOI course library]  [Book a free admissions call]
+> **[Inquire About Training]**  [Explore the NWIOI course library]
 > *Additional NWIOI courses depend on current availability.*
 
 Next to any combined estimate:
@@ -103,14 +103,9 @@ The page's existing "Fall/Spring Advanced classes (75 + 24 CEUs)" and "51 CEU ga
 - Use "Sexuality Counselor", not "Sex Counselor".
 - Remove the "Optional CME Add On: $450" unless it's still offered.
 
-## Booking link
+## Inquiry link
 
-"Schedule Free Admissions Call" currently points to three places:
-- student.nwioi.com/inquire
-- student.nwioi.com
-- nwioi.com/nwioi-application
-
-Pick one, and set it under Admin → Links.
+Use **Inquire About Training** → `https://student.nwioi.com/inquire` everywhere the site says "Schedule Free Admissions Call" (it currently points to three different pages). The calculator uses this link for Inquire About Training, the top bar and Ask about the Equity Scholarship.
 
 ## To confirm before publishing
 

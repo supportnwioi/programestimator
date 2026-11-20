@@ -293,15 +293,15 @@ test('Equity Scholarship: seat count only from a verified admissions record', ()
   assert.equal(cat.equityScholarship.verifiedSeats.remaining, 1);
 });
 
-test('next steps: Review my prior training, the course library, and admissions for equity questions', () => {
+test('next steps: Inquire About Training, the course library, and admissions for equity questions', () => {
   const links = { booking: 'https://calendar.nwioi-test.org/admissions' };
   const cat = structuredClone(DEFAULT_CATALOG);
   cat.library.url = 'https://nwioi-test.org/library';
   const r = est('sex_therapist', full(), { preview: true, links }, cat);
-  assert.deepEqual([r.tracks.core.cta.label, r.tracks.core.cta.link.url], ['Review my prior training', links.booking]);
+  assert.deepEqual([r.tracks.core.cta.label, r.tracks.core.cta.link.url], ['Inquire About Training', links.booking]);
   assert.deepEqual([r.tracks.core.secondary.label, r.tracks.core.secondary.link.url], ['Explore the NWIOI course library', 'https://nwioi-test.org/library']);
   assert.equal(r.prior.libraryNote, 'Additional NWIOI courses depend on current availability.');
-  assert.equal(r.tracks.alaCarte.secondary.label, 'Book a free admissions call');
+  assert.equal(r.tracks.alaCarte.secondary.label, 'Inquire About Training');
   assert.equal(r.scholarship.equity.url, links.booking);
 });
 

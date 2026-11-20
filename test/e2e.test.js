@@ -409,7 +409,7 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   assert.match(squash(await text(page, '[data-testid="core-line"]')), /Up to 51 of your prior hours could reduce the coursework you still need: estimated 0–51 hours remaining\. Estimated cost if purchased at \$35 per hour: \$0–\$1,785\./, 'a rough 106-hour total guarantees no reduction: the full gap stays the upper end');
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
   assert.equal(await page.locator('.quick-result .btn.primary').count(), 1);
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Inquire About Training');
   // Category detail: assigned hours give the detailed estimate; the rest stays unassigned.
   await page.click('[data-open-categories]');
   await hours(page, 'core', 60);
@@ -439,7 +439,7 @@ test('Track finder: No path — CE can be entered with no college coursework; No
   await ce(page, 'no');
   await settled(page);
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /haven’t reported prior coursework yet/);
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Inquire About Training');
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
   await page.close();
 });
@@ -450,7 +450,7 @@ test('Track finder: I’m not sure path — review offered directly, nothing gue
   await college(page, 'unsure');
   await settled(page);
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /Not sure\? That’s common\. We can go through your transcripts and CE certificates with you/);
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Inquire About Training');
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
   await ce(page, 'yes', { unsure: 6 });
   await settled(page);
@@ -664,7 +664,7 @@ test('Track finder (preview): payoff — potential time and coursework savings s
   assert.ok(pos.block >= pos.h && pos.block - pos.h < 60, 'right under the heading');
   assert.ok(pos.lines > pos.block, 'above the coursework breakdown');
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
-  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
+  assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Inquire About Training');
   // Both numbers move together; Core tuition stays.
   await page.fill('#ce-aasect', '10');
   await settled(page);
@@ -758,4 +758,18 @@ test('Track finder (preview): Core payment options and Equity Scholarship — to
   assert.ok(await m.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.pay-amt strong')).fontSize)) >= 16);
   await shot(m, '15-payments-mobile');
   await m.close();
+});
+
+test('Track finder (preview, shipped defaults): “Inquire About Training” opens the live NWIOI inquiry page with no placeholder tag', async () => {
+  const page = await newPage(BASE2);
+  await choose(page, 'sex_therapist');
+  await college(page, 'yes', 3);
+  await settled(page);
+  const cta = page.locator('.quick-result [data-testid="primary-cta"]');
+  assert.equal(await cta.textContent(), 'Inquire About Training');
+  assert.equal(await cta.getAttribute('href'), 'https://student.nwioi.com/inquire');
+  assert.equal(await cta.getAttribute('target'), '_blank');
+  assert.equal(await page.getAttribute('[data-testid="equity"]', 'href'), 'https://student.nwioi.com/inquire');
+  assert.doesNotMatch(await page.textContent('[data-testid="quick-result"]'), /Placeholder link/);
+  await page.close();
 });

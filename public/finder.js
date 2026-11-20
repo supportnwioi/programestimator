@@ -475,7 +475,7 @@ function renderBar() {
         <span class="estimate-value ${known(t.price) ? '' : 'confirm-value'}" data-testid="bar-price">${esc(value)}</span>
         <span class="estimate-sub" data-testid="bar-sub">${esc(sub)}</span>
       </div>
-      <span class="bar-cta">${linkHtml(config.links.scheduling, 'Book a free admissions call', 'btn bar-btn', 'bar-book')}</span>
+      <span class="bar-cta">${linkHtml(config.links.scheduling, 'Inquire About Training', 'btn bar-btn', 'bar-book')}</span>
     </div>`;
   if (changed) {
     const el = $bar.querySelector('.estimate-value');
@@ -600,7 +600,7 @@ function requestEstimate(immediate = false) {
     } catch (err) {
       if (err.name === 'AbortError') return;
       const opts = $main.querySelector('#options');
-      if (opts) opts.innerHTML = `<div class="card"><p>We couldn’t load tuition right now.</p><div class="cta">${linkHtml(config.links.scheduling, 'Book a free admissions call', 'btn primary big', 'primary-cta')}</div></div>`;
+      if (opts) opts.innerHTML = `<div class="card"><p>We couldn’t load tuition right now.</p><div class="cta">${linkHtml(config.links.scheduling, 'Inquire About Training', 'btn primary big', 'primary-cta')}</div></div>`;
     }
   }, immediate ? 0 : 120);
 }

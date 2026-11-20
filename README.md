@@ -112,7 +112,7 @@ Monthly amounts are rounded to the cent, and the final payment absorbs the round
      - The tiles use the same preliminary hour count shown in the result, and appear only once there are hours. The $35 planning rate is approved, so the dollar figures show publicly.
    - The hours that may count toward the 150, with college, CE and pending lines.
    - The required planning note: NWIOI helps review transcripts and CE certificates; AASECT makes the final determination.
-   - Then **Review my prior training**.
+   - Then **Inquire About Training**.
    - **Two remaining-coursework figures, labeled separately** (shown once both category hours are entered):
      - **What you may still need after Core** (shown under the Core offer and in the result), from hour totals only:
        - **Mappings:** Sexuality Educator uses the working split of **39 Core Knowledge + 60 Sexuality Education Skills Training**, which leaves 51 Core Knowledge hours. Therapist and Counselor are pending until their course lists are mapped, so they show the 51-hour gap without a category split.
@@ -154,9 +154,9 @@ Example: 25 prior CEUs → 26 remaining → $910 → combined $9,110 / $8,360 / 
 **Recommendation** (only once the answers support it): À La Carte if supervision will be outside NWIOI, or at least 20% of the supervision target is done. Otherwise Core. The recommended card gets an outline and a “Recommended for you” chip. While the À La Carte builder is open, the bar shows its estimate.
 
 **Next steps:**
-- Primary: **Review my prior training** (admissions booking).
+- Primary: **Inquire About Training**, which opens https://student.nwioi.com/inquire (the default `schedulingUrl`, changeable in Admin → Links).
 - Secondary: **Explore the NWIOI course library**, with “Additional NWIOI courses depend on current availability.”
-- **Book a free admissions call** is in the pinned bar.
+- **Inquire About Training** is also in the pinned bar.
 - **Equity Scholarship** sits under the Core payment options.
 - Once the enrollment link is approved, “Ready to enroll?” also appears.
 
