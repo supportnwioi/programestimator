@@ -113,6 +113,9 @@ Monthly amounts are rounded to the cent, and the final payment absorbs the round
    - The hours that may count toward the 150, with college, CE and pending lines.
    - The required planning note: NWIOI helps review transcripts and CE certificates; AASECT makes the final determination.
    - Then **Review my prior training**.
+   - **Two remaining-coursework figures, labeled separately** (shown once both category hours are entered):
+     - **After Core Program:** Core’s 99 hours leave a 51-hour gap ($1,785 at $35 per hour), assuming all package hours apply. Prior coursework reduces that only where it covers what Core leaves open. With `core.curriculumMapping`, that's exact by category and overlap is counted once. Without a mapping, the reduced figure is shown as conditional and marked **Rough planning estimate**.
+     - **À La Carte only (without Core), based on your answers:** (90 − core hours) + (60 − skills hours). For example, 60 + 29 gives 61 hours, or $2,135. The À La Carte row labels it **Estimated coursework still needed**, with the cost as “Estimated coursework cost at $35 per hour”.
    - Hours with an unknown category stay **unassigned**. A rough total never makes a category complete, and never gives a remaining-CEU or cost estimate or says how much can be skipped. Those appear only once both category hours are entered.
    - “I’m not sure” offers the transcript and CE review directly.
 5. **Core Program** and **À La Carte** as two compact rows, with the comparison and builder behind secondary links.

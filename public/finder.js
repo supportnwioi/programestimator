@@ -267,9 +267,22 @@ function quickResult() {
   let estimate = '';
   if (hasCat) {
     const est = [];
-    if (pr.remaining === 0) est.push('<li data-testid="core-line"><strong>Core Program:</strong> your prior training may cover the rest of the education requirement beyond its 99 CEUs.</li>');
-    else est.push(`<li data-testid="core-line"><strong>Core Program:</strong> about ${plural(pr.remaining, 'more CEU')} beyond the 99 included${pr.mappingKnown ? ` (${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})` : ''}${pr.additional ? `, about ${esc(pr.additional.display)} through NWIOI` : ''}.${pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : ''}</li>`);
-    if (cw.state === 'known') est.push(`<li data-testid="ala-line"><strong>À La Carte:</strong> about ${plural(cw.remaining, 'CEU')} remaining (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `, about ${esc(cw.cost.display)} for coursework through NWIOI` : ''}.</li>`);
+    // After Core: start from the hours the 99-hour package leaves open (assuming all package hours
+    // apply), then reduce only for prior coursework that covers a remaining requirement. With a
+    // curriculum mapping that's exact by category; without one it's shown as conditional.
+    const start = `Core’s 99 hours leave about <strong>${plural(pr.gapBeforePrior, 'hour')}</strong> of coursework${pr.gapCost ? ` (estimated coursework cost at ${esc(pr.planningRate)} per hour: <strong data-testid="gap-cost">${esc(pr.gapCost)}</strong>)` : ''}, assuming all package hours apply to your requirements.`;
+    let after;
+    if (pr.mappingKnown) {
+      after = pr.remaining === 0
+        ? ' Your prior coursework may cover the requirements Core leaves open.'
+        : ` Counting prior coursework only where it covers what Core leaves open, estimated coursework still needed: about <strong>${plural(pr.remaining, 'hour')}</strong> (${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})${pr.additional ? `, estimated coursework cost at ${esc(pr.planningRate)} per hour: <strong>${esc(pr.additional.display)}</strong>` : ''}.`;
+    } else if (pr.counted > 0) {
+      after = pr.remaining === 0
+        ? ' If your prior coursework covers the requirements Core leaves open, it could cover all of them.'
+        : ` If your prior coursework covers requirements Core leaves open, that could drop to about <strong>${plural(pr.remaining, 'hour')}</strong>${pr.additional ? ` (<strong>${esc(pr.additional.display)}</strong>)` : ''}.`;
+    } else after = '';
+    est.push(`<li data-testid="core-line"><strong>After Core Program:</strong> ${start}${after}${pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : ''}</li>`);
+    if (cw.state === 'known') est.push(`<li data-testid="ala-line"><strong>À La Carte only (without Core), based on your answers:</strong> estimated coursework still needed: about <strong>${plural(cw.remaining, 'hour')}</strong> (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `. Estimated coursework cost at ${esc(cw.cost.rate)} per hour: <strong>${esc(cw.cost.display)}</strong>` : ''}.</li>`);
     estimate = `<ul class="small result-lines" data-testid="result-lines">${est.join('')}</ul>`;
   } else {
     estimate = `<p class="small" data-testid="unassigned-note">These hours aren’t assigned to Core Knowledge or ${esc(b.trainingLabel)} yet, so we can’t say which requirements they cover. <button type="button" class="link" data-open-categories>I know my hours by category</button></p>`;
@@ -321,8 +334,9 @@ function optionsSection() {
        <span class="small muted">18-month standard tuition</span>${draftChip(p.draft)}`
     : `<span class="opt-label">Package tuition</span><strong class="row-amt confirm" data-testid="rec-price">${esc(p.confirmText)}</strong>`;
   const alaPrice = cw.state === 'known'
-    ? `<span class="opt-label">Estimated coursework cost</span><strong class="row-amt" data-testid="ala-coursework-cost">${cw.cost ? esc(cw.cost.display) : 'Ask admissions'}</strong>
-       <span class="small" data-testid="ala-remaining">${plural(cw.remaining, 'CEU')} remaining · planning estimate</span>${draftChip(cw.cost?.draft)}`
+    ? `<span class="opt-label">Estimated coursework still needed</span><strong class="row-amt" data-testid="ala-remaining">${plural(cw.remaining, 'hour')}</strong>
+       <span class="small" data-testid="ala-cost-line">${cw.cost ? `Estimated coursework cost at ${esc(cw.cost.rate)} per hour: <strong data-testid="ala-coursework-cost">${esc(cw.cost.display)}</strong>` : 'Ask admissions about cost'}</span>
+       <span class="small muted" data-testid="ala-basis">Based on your answers, buying courses individually without Core</span>${draftChip(cw.cost?.draft)}`
     : '<span class="opt-label">Price</span><strong class="row-amt row-amt-text">Based on what you choose</strong>';
   return `<section class="card rows" data-testid="options" aria-labelledby="rows-h">
     <h2 id="rows-h" class="rows-h">Two ways to train with NWIOI</h2>
@@ -400,7 +414,7 @@ function alaCourses() {
       <input type="number" id="${id}" data-ala="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
       <span class="small muted">${hint}</span></div>`;
   return `<h3 class="small-h">Coursework</h3>
-    ${cw.state === 'known' ? `<p class="small" data-testid="ala-courses-estimate">You may still need about <strong>${plural(cw.remaining, 'CEU')}</strong>${cw.cost ? ` (${esc(cw.cost.display)} estimated through NWIOI)` : ''}. Planning estimate.</p>`
+    ${cw.state === 'known' ? `<p class="small" data-testid="ala-courses-estimate">Estimated coursework still needed, based on your answers: about <strong>${plural(cw.remaining, 'hour')}</strong>${cw.cost ? `. Estimated coursework cost at ${esc(cw.cost.rate)} per hour: ${esc(cw.cost.display)}` : ''}. Planning estimate.</p>`
       : '<p class="small muted">Add your hours by category above to see what you may still need.</p>'}
     <div class="grid2">
       ${num('ala-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, eduHint(sug.coreCeus))}

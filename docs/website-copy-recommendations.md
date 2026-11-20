@@ -114,7 +114,7 @@ Pick one, and set it under Admin → Links.
 
 ## To confirm before publishing
 
-1. **Prices.** The $35/CEU planning rate, À La Carte rates, payment options and Equity Scholarship terms are approved. The three Core tuitions are still `draft` in `config/tracks.json`, so the public sees “Confirm Core tuition with admissions” and no payment amounts until they're approved.
+1. **Prices.** Core tuition ($8,200 / $7,450 / $6,950), payment options, the Equity Scholarship terms, the $35/CEU planning rate and the À La Carte rates are all approved in `config/tracks.json`. The Educator price assumes Kristen places NWIOI Sexuality Educator Core students in her existing supervision groups: five one-hour individual sessions and ten two-hour group sessions (confirmed).
 2. **Curriculum mapping.** For each credential, how the 99 Core CEUs split between CKAs and skills training. Until it's set, the calculator uses the 51-hour gap and labels it a rough planning estimate.
 3. **Course library URL.** `library.url` is empty, so "Explore the NWIOI course library" shows "link coming soon".
 4. **Booking, enrollment, supervisors and sample-weekend links.** These are placeholders or empty.

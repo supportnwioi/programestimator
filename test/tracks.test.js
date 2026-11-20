@@ -132,7 +132,7 @@ test('À La Carte: one total; quantities only; no unit prices or line amounts in
   assert.deepEqual([a.price.display, a.price.complete], ['$11,695', true]);
   assert.deepEqual(a.items, ['75 Core Knowledge CEUs', '50 Sex Therapy Skills Training CEUs', 'SAR (Sexuality Attitude Reassessment)', '26 hours of individual supervision', '8 group supervision sessions, 3 hours each']);
   const json = JSON.stringify(a);
-  for (const leak of ['$35', '$195', '$200', '$650', '2,625', '5,070', '1,600', '"amount":35']) assert.ok(!json.includes(leak), `À La Carte payload leaks ${leak}`);
+  for (const leak of ['$195', '$200', '$650', '2,625', '5,070', '1,600', '"amount":35']) assert.ok(!json.includes(leak), `À La Carte payload leaks ${leak}`);
   assert.ok(!('lines' in a) && !('subtotal' in a));
 });
 
@@ -206,24 +206,36 @@ test('package savings only when both totals cover the same components and quanti
   assert.equal(s[2], null, 'Educator’s 20 group hours don’t divide into 3-hour sessions, so no savings figure');
 });
 
-test('drafts are hidden publicly; approved À La Carte rates and the Equity Scholarship show', () => {
+test('approved Core tuition, payment options and À La Carte show publicly; anything set back to draft is hidden', () => {
   const pub = est('sex_therapist', full({ core: 15, skills: 10 }), { preview: false });
-  assert.equal(pub.tracks.core.price.confirmText, 'Confirm Core tuition with admissions');
-  assert.deepEqual(pub.tracks.core.paymentOptions, [], 'no payment amounts while Core tuition is draft');
-  assert.equal(pub.tracks.alaCarte.price.display, '$11,045', 'À La Carte approved: courses + NWIOI supervision');
-  assert.equal(pub.prior.combined, null);
-  assert.equal(pub.savings, null);
-  const json = JSON.stringify(pub);
-  for (const leak of ['8,200', '7,790', '8,036', '$195', '$650']) assert.ok(!json.includes(leak), `public payload leaks ${leak}`);
-  assert.equal(pub.scholarship.title, 'Equity Scholarship');
-  assert.equal(pub.scholarship.plan, null, 'scholarship amounts wait for approved tuition');
-  assert.equal(pub.scholarship.application.url, 'https://forms.wix.com/f/7167298250691576552');
+  assert.deepEqual([pub.tracks.core.price.display, pub.tracks.core.price.draft, pub.tracks.core.price.payInFull.display], ['$8,200', false, '$7,790.00']);
+  assert.deepEqual(pub.tracks.core.paymentOptions.map((o) => o.totalDisplay), ['$7,790.00', '$8,036.00', '$8,200.00']);
+  assert.equal(pub.tracks.alaCarte.price.display, '$11,045', 'courses + NWIOI supervision');
+  assert.equal(pub.prior.combined.display, '$9,110');
+  assert.equal(pub.scholarship.plan.totalDisplay, '$7,790.00');
+  for (const leak of ['$195', '$650']) assert.ok(!JSON.stringify(pub).includes(leak), `public payload leaks ${leak}`);
   const cat = structuredClone(DEFAULT_CATALOG);
-  cat.credentials.sexuality_educator.core.status = 'approved';
-  const ok = est('sexuality_educator', {}, { preview: false }, cat);
-  assert.deepEqual([ok.tracks.core.price.amount, ok.tracks.core.price.payInFull.display, ok.tracks.core.price.draft], [6950, '$6,602.50', false]);
-  assert.deepEqual(ok.tracks.core.paymentOptions.map((o) => o.totalDisplay), ['$6,602.50', '$6,811.00', '$6,950.00']);
-  assert.equal(ok.scholarship.plan.totalDisplay, '$6,602.50');
+  cat.credentials.sexuality_educator.core.status = 'draft';
+  const d = est('sexuality_educator', {}, { preview: false }, cat);
+  assert.equal(d.tracks.core.price.confirmText, 'Confirm Core tuition with admissions');
+  assert.deepEqual(d.tracks.core.paymentOptions, []);
+  assert.equal(d.scholarship.plan, null);
+  assert.ok(!JSON.stringify(d).includes('6,950'));
+});
+
+test('after Core vs À La Carte only: 51-hour starting gap ($1,785) vs the standalone estimate (61 hours, $2,135)', () => {
+  const none = est('sex_therapist', { core: 0, skills: 0 });
+  assert.deepEqual([none.prior.gapBeforePrior, none.prior.gapCost, none.prior.remaining, none.prior.additional.display], [51, '$1,785', 51, '$1,785']);
+  const r = est('sex_therapist', { core: 60, skills: 29 });
+  assert.deepEqual([r.tracks.alaCarte.coursework.basis, r.tracks.alaCarte.coursework.remaining, r.tracks.alaCarte.coursework.cost.display, r.tracks.alaCarte.coursework.cost.rate], ['standalone', 61, '$2,135', '$35']);
+  assert.equal(r.prior.remaining, 0, 'after Core (rough, no mapping)');
+  // With a curriculum mapping, prior coursework only reduces the gap where it covers what Core leaves open.
+  const cat = structuredClone(DEFAULT_CATALOG);
+  cat.credentials.sex_therapist.core.curriculumMapping = { core: 60, skills: 39 };
+  const m = est('sex_therapist', { core: 40, skills: 5 }, { preview: true }, cat).prior;
+  assert.deepEqual([m.gapCore, m.gapSkills, m.remainingCore, m.remainingSkills, m.remaining, m.additional.display, m.overlap], [30, 21, 0, 16, 16, '$560', 10]);
+  const allCore = est('sex_therapist', { core: 90, skills: 0 }, { preview: true }, cat).prior;
+  assert.deepEqual([allCore.remainingCore, allCore.remainingSkills], [0, 21], 'extra core hours never close the skills gap');
 });
 
 test('Core payment options: 5% / 2% / standard; monthly to the cent with the final payment adjusted; no fees', () => {

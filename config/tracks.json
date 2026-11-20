@@ -24,7 +24,7 @@
     "sex_therapist": {
       "skillsExample": "For example, a training on sensate focus or on assessing and treating sexual pain.",
       "core": {
-        "status": "draft",
+        "status": "approved",
         "tuition": 8200,
         "ceus": 99,
         "includesSar": true,
@@ -72,7 +72,7 @@
     "sexuality_counselor": {
       "skillsExample": "For example, a training on counseling clients about sexual concerns or working with specific populations.",
       "core": {
-        "status": "draft",
+        "status": "approved",
         "tuition": 7450,
         "ceus": 99,
         "includesSar": true,
@@ -121,7 +121,7 @@
     "sexuality_educator": {
       "skillsExample": "For example, a training on designing a sexuality education curriculum or facilitating groups.",
       "core": {
-        "status": "draft",
+        "status": "approved",
         "tuition": 6950,
         "ceus": 99,
         "includesSar": true,
@@ -132,7 +132,8 @@
           "groupHours": 20,
           "groupSessions": 10,
           "groupSessionHours": 2,
-          "description": "Five individual hours with your primary supervisor and 20 group hours in ten two-hour sessions"
+          "description": "Five individual hours with your primary supervisor and 20 group hours in ten two-hour sessions",
+          "_arrangement": "Kristen places NWIOI Sexuality Educator Core students in her existing supervision groups: five one-hour individual sessions and ten two-hour group sessions (confirmed 2026-11-20)."
         },
         "minMonths": 9,
         "lead": "Design and deliver a sexuality education program with feedback from an AASECT Certified Sexuality Educator Supervisor.",

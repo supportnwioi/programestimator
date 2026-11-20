@@ -418,7 +418,10 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   assert.match(squash(await text(page, '[data-testid="cat-line"]')), /Core Knowledge: 60 of 90 hours · Sexuality Counseling Skills Training: 29 of 60 hours/);
   assert.match(squash(await text(page, '[data-testid="unassigned"]')), /About 17 more hours not yet assigned to a category/);
   assert.match(squash(await text(page, '[data-testid="live-core"]')), /10 of 15 required live hours/);
-  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /about 61 CEUs remaining \(30 core knowledge, 31 sexuality counseling skills training\), about \$2,135/);
+  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /^À La Carte only \(without Core\), based on your answers: estimated coursework still needed: about 61 hours \(30 core knowledge, 31 sexuality counseling skills training\)\. Estimated coursework cost at \$35 per hour: \$2,135\.$/);
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /^After Core Program: Core’s 99 hours leave about 51 hours of coursework \(estimated coursework cost at \$35 per hour: \$1,785\), assuming all package hours apply to your requirements\. If your prior coursework covers the requirements Core leaves open, it could cover all of them\./);
+  assert.equal(await text(page, '[data-testid="ala-remaining"]'), '61 hours');
+  assert.match(squash(await text(page, '[data-track="alaCarte"]')), /Estimated coursework still needed\s*61 hours\s*Estimated coursework cost at \$35 per hour: \$2,135\s*Based on your answers, buying courses individually without Core/);
   assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$2,135');
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$7,450', 'Core tuition fixed');
   await page.close();
@@ -490,7 +493,7 @@ test('Track finder (preview): category hours drive the detailed estimate — 25 
     await choose(page, cred);
     await categories(page, 15, 10);
     await settled(page);
-    assert.match(squash(await text(page, '[data-testid="core-line"]')), /about 26 more CEUs beyond the 99 included, about \$910 through NWIOI\.\s*Rough planning estimate/);
+    assert.match(squash(await text(page, '[data-testid="core-line"]')), /leave about 51 hours of coursework \(estimated coursework cost at \$35 per hour: \$1,785\).*If your prior coursework covers requirements Core leaves open, that could drop to about 26 hours \(\$910\)\.\s*Rough planning estimate/);
     if (!(await page.evaluate(() => document.getElementById('plan-remaining')?.open))) await page.click('#plan-remaining summary');
     assert.equal(await text(page, '[data-testid="combined-cost"]'), combined, cred);
     assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
@@ -503,7 +506,7 @@ test('Track finder (preview): category hours drive the detailed estimate — 25 
   assert.equal(await page.evaluate(() => document.activeElement.id), 'add-outside', 'focus stays while typing');
   await categories(page, 90, 60);
   await settled(page);
-  assert.match(squash(await text(page, '[data-testid="core-line"]')), /may cover the rest of the education requirement beyond its 99 CEUs/);
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /it could cover all of them/);
   await page.close();
 });
 
@@ -527,7 +530,7 @@ test('Track finder (preview): À La Carte builder — one total, quantities only
   assert.deepEqual(await page.$$eval('[data-testid="ala-items"] li', (els) => els.map((e) => e.textContent)),
     ['75 Core Knowledge CEUs', '50 Sex Therapy Skills Training CEUs', 'SAR (Sexuality Attitude Reassessment)', '26 hours of individual supervision', '8 group supervision sessions, 3 hours each']);
   const flow = await text(page, '#ala-flow');
-  for (const hidden of ['× $', '$35', '$195', '$200', '$650', '$2,625', '$5,070', 'subtotal']) assert.ok(!flow.includes(hidden), `shows ${hidden}`);
+  for (const hidden of ['× $', '$195', '$200', '$650', '$2,625', '$5,070', 'subtotal']) assert.ok(!flow.includes(hidden), `shows ${hidden}`);
   await page.fill('#ala-skills', '10');
   await settled(page);
   assert.equal(await text(page, '[data-testid="ala-total-label"]'), 'Your selected items');
@@ -570,16 +573,15 @@ test('Track finder: keyboard-only use; still deciding; verified admissions desti
   await pub.close();
 });
 
-test('Track finder (public): only approved offers show tuition; drafts and placeholders stay in preview', async () => {
+test('Track finder (public): approved Core tuition and payment options show; no draft labels or placeholders', async () => {
   const page = await newPage(BASE);
   await choose(page, 'sex_therapist');
   await college(page, 'yes', 2);
   await settled(page);
-  assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
+  assert.equal(await text(page, '[data-testid="pay-full-total"]'), '$7,790.00');
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 30 hours/, 'hours result shows publicly');
-  const main = (await page.textContent('main')).replace(/\$\d[\d,]*(?= )/g, (m) => (m === '$30' ? '' : m));
-  const dollars = (await page.textContent('main')).match(/\$[\d,]+/g) || [];
-  assert.deepEqual([...new Set(dollars)], ['$1,050', '$35'], 'only approved savings figures publicly, no draft tuition');
+  const main = await page.textContent('main');
   assert.doesNotMatch(main, /Draft|preview|Placeholder/i);
   await choose(page, 'sexuality_educator');
   await settled(page);
@@ -680,7 +682,7 @@ test('Track finder (preview): payoff — potential time and coursework savings s
   await m.close();
 });
 
-test('Track finder (public): approved $35 rate shows the dollar savings publicly; Core tuition still draft', async () => {
+test('Track finder (public): approved $35 rate shows the dollar savings publicly', async () => {
   const page = await newPage(BASE);
   await choose(page, 'sex_therapist');
   await college(page, 'yes', 20, 'hours');
@@ -689,7 +691,7 @@ test('Track finder (public): approved $35 rate shows the dollar savings publicly
   assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you up to 25 hours and $875 in additional coursework.');
   assert.equal(await text(page, '[data-testid="save-dollars"]'), '$875');
   assert.doesNotMatch(await text(page, '[data-testid="savings-block"]'), /Draft|preview/i);
-  assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,200');
   await page.close();
 });
 

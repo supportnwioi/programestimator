@@ -142,7 +142,7 @@ export function priorSources(b, rules, college = {}, ce = {}) {
 export function priorCoverage(b, core, ck, sk, total = { state: 'unanswered' }) {
   const mapping = core.curriculumMapping || null;
   const gap = b.education - core.ceus;
-  const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, rough: !mapping, basis: 'categories' };
+  const base = { nwioiCeus: core.ceus, mappingKnown: Boolean(mapping), gapBeforePrior: gap, gapCore: mapping ? b.core - mapping.core : null, gapSkills: mapping ? b.skills - mapping.skills : null, rough: !mapping, basis: 'categories' };
   // One self-reported total (no category split): hours that may count overall, and
   // the arithmetic gap beyond Core. Always a rough planning estimate.
   // A rough total never assigns hours to a category, declares one complete, or says how much
@@ -239,6 +239,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const cov = priorCoverage(b, c, ck, sk, tot);
   const dayHours = catalog.trainingDay?.hours || 8;
   const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null,
+    gapCost: planRateVisible ? money(cov.gapBeforePrior * planRate.perCeu) : null,
     days: (cov.state === 'known' || cov.state === 'rough') && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours,
     sources,
     // Potential savings: the same preliminary hour count shown in the result × the planning rate.
@@ -327,7 +328,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   if (ck.state === 'hours' && sk.state === 'hours') {
     const rc = b.core - ck.hours, rs = b.skills - sk.hours, rem = rc + rs;
     coursework = { state: 'known', remaining: rem, remainingCore: rc, remainingSkills: rs,
-      cost: rateVis ? { amount: rem * rate, display: money(rem * rate), draft: m.ceuRate.status !== 'approved' } : null };
+      cost: rateVis ? { amount: rem * rate, display: money(rem * rate), rate: money(rate), draft: m.ceuRate.status !== 'approved' } : null, basis: 'standalone' };
   } else {
     coursework = { state: 'unresolved', remainingCore: ck.state === 'hours' ? b.core - ck.hours : null, remainingSkills: sk.state === 'hours' ? b.skills - sk.hours : null, unsure: [ck, sk].some((a) => a.state === 'unsure') };
   }
