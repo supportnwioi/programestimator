@@ -24,10 +24,6 @@ export const DEFAULT_SETTINGS = {
   supervisionRatePerHour: 185,
   sarPrice: 650,
   priceRangeBuffer: 500,
-  // Dollar figures are shown to the public only after NWIOI confirms pricing.
-  pricingConfirmed: false,
-  // Optional per-path program/enrollment pages. Empty = no "Explore enrollment" button.
-  enrollmentUrls: { sex_therapist: '', sexuality_counselor: '', sexuality_educator: '' },
   schedulingUrl: 'https://example.com/nwioi-admissions-calendar',
   contactUrl: 'mailto:admissions@example.org?subject=Question%20about%20my%20NWIOI%20estimate',
   offerings: {
@@ -83,6 +79,12 @@ export const shares = {
     try { return fs.readdirSync(p('shares')).map((d) => readJson(p('shares', d, 'share.json'))).filter(Boolean); } catch { return []; }
   },
   filePath(id, name) { return p('shares', path.basename(id), path.basename(name)); },
+};
+
+// Track catalog (tiers, tuition, curriculum, links). Seeded from config/tracks.json.
+export const tracks = {
+  get: () => readJson(p('tracks.json'), null) ?? readJson(path.join(ROOT, 'config/tracks.json'), null),
+  save: (v) => writeJson(p('tracks.json'), v),
 };
 
 export const checks = {

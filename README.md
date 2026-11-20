@@ -48,47 +48,51 @@ node --test test/e2e.test.js    # full browser flow for all three paths (Playwri
 | Document review: Claude when configured, offline extractor otherwise | `src/extract.js` |
 | Change detection, draft, validation, approval | `src/rulesetAdmin.js`, `src/sourceText.js` |
 | Duplicate detection, shared by the browser and the server | `public/shared/dedupe.js` |
-| One-page quick estimator (default page) | `public/index.html` + `quick.js`; calculation in `src/quickEstimate.js`; assumptions in `config/quick-estimate.json` |
-| Detailed course-by-course estimator / admin UI / privacy placeholder | `public/detailed.html` + `detailed.js` (at `/detailed`), `public/admin.html` + `admin.js`, `public/privacy.html` |
+| Track finder (default page) | `public/index.html` + `finder.js`; logic in `src/tracks.js`; catalog in `config/tracks.json`; link safety in `src/links.js` |
+| Detailed course-by-course estimator / admin UI / privacy placeholder | `public/detailed.html` + `detailed.js` (internal, admin sign-in, at `/detailed`), `public/admin.html` + `admin.js`, `public/privacy.html` |
 
 AI is used only to summarize documents, extract course details and **explicitly stated** hours, and suggest areas. If the model returns hours that the document doesn't state, they are discarded and the student gets a follow-up question. All counting and pricing is done in application code.
 
-## One-page quick estimator (default page)
+## Track finder & tuition (default page)
 
-This page answers one question: “Given what I’ve already done, what might it cost to finish my training with NWIOI?” The visitor picks a path, or “I’m still deciding”, and then answers three questions:
+Headline **“Find the right NWIOI track for you”** (suggested website link text: **“Find my track & see tuition”**). The visitor picks a credential (Sex Therapist, Sexuality Counselor, Sexuality Educator or “I’m still deciding”) and answers four questions:
+1. Education hours: slider plus number box, with “None yet” and “I’m not sure”, and a semester-credit helper.
+2. Supervision hours: same controls, up to the credential’s target of 50, 30 or 25 hours.
+3. SAR: yes, no or not sure.
+4. Where they want to do supervision.
 
-| Input | Benchmark (from the active, approved ruleset) | States |
-|---|---|---|
-| Education hours (slider + number box) | Core knowledge + skills training hours (150 for every path today) | Not answered / “None yet” (0) / a number / “I’m not sure” |
-| Supervision hours (slider + number box) | The path’s standard supervision hours (Sex Therapist 50, Counselor 30, Educator 25) | Same as above |
-| SAR | n/a | Yes (self-reported) / No / Not sure |
+The result updates live. It shows **one recommended NWIOI tier**, why it fits, the NWIOI tuition or estimate, what’s included and one primary action. Below it, **Compare tracks** shows the alternatives for that credential.
 
-The range updates as answers change, with no submit button. It is calculated server-side by `src/quickEstimate.js` (`POST /api/quick-estimate`) and only the range and short notes are returned. That module is separate from the detailed engine, which needs itemized, per-area entries.
+**Credentials vs tiers.** AASECT credentials set the training requirements, and NWIOI tiers are what someone buys. Each credential’s tiers are defined in a catalog: `config/tracks.json`, editable under Admin → **Tracks & tuition**. The catalog holds each tier’s curriculum, supervision package, minimum supervision period, tuition, payment plans, links and status.
+- **Checked against AASECT:** when the catalog is saved, each credential’s curriculum, supervision package and minimum period must match its active AASECT ruleset, including the credential-specific skills training.
+- **Draft vs approved:** only offers marked `"approved"` show prices and enrollment links publicly. Drafts are visible only to signed-in admins, or to everyone when the server runs with `NWIOI_PREVIEW=1`, always labeled as drafts. Otherwise the public sees “Confirm tuition with admissions” (or “Confirm Core tuition…”, or “Confirm Modular pricing…”).
 
-How the estimate responds to each input (`config/quick-estimate.json`):
+**Pricing** (`src/tracks.js`, `POST /api/track-estimate`). This is separate from the detailed engine, whose itemized retail calculation is never shown as package tuition.
+- **Tier I · Comprehensive:** a fixed package price per credential that includes SAR. Prior work never changes it.
+- **Tier II · Core:** a fixed package price, currently defined only for Sex Therapist (99 CEUs + 50 supervision hours). SAR is an optional add-on when needed.
+- **Tier III · Modular:** CEUs × the CEU rate, plus selected add-ons (SAR, and NWIOI individual supervision hours and group sessions at their own rates). Supervision with an outside supervisor is excluded from the total.
 
-- **Hours entered** are treated as hours that *may* count. The low price assumes 90% of them count, and the high price assumes 50% count. It never assumes 100%, because self-reported hours rarely cover every content area, per-area minimum and live-training requirement.
-- **More hours** never raises the estimate. This is tested for every path.
-- **“I’m not sure”** widens the range. The high end assumes none of the hours count, and the low end assumes up to half the benchmark might.
-- **Not answered** shows no price until both hours questions are answered.
-- **SAR “No”** includes the SAR price. **“Yes”** leaves it out and notes that NWIOI will confirm it. **“Not sure” or unanswered** puts it in the high end only.
-- **Price buffer:** the admin buffer widens the range. The lower bound never drops below half the most optimistic cost, and is rounded to $50.
-- **Both sliders at their maximum** shows “Get a personalized estimate”, never $0.
-- **Requirements NWIOI doesn’t offer** for a path (Admin → What NWIOI provides) are left out of the price, with a note.
+**Recommendation rules**, in order:
+1. **Outside supervision, or at least 20% of the supervision target already done:** Modular.
+2. **Therapist with about 51 or more potentially applicable CEUs, who still needs full supervision:** Core (“Core may be your fit”).
+3. **Otherwise, a complete Modular estimate below Comprehensive tuition:** Modular.
+4. **Otherwise:** Comprehensive.
 
-The next step shown depends on the answers:
+The sliders change the recommendation and the Modular quote, never fixed tuition. Unknown answers are never treated as zero.
 
-- **Prior training, or unsure:** “Book an admissions call” is the main button.
-- **Starting from scratch, with an enrollment page set for the path:** “Explore enrollment options” is the main button, and booking comes second.
-- **“I’m still deciding”:** “Talk through your options”, which goes to booking.
+**Next steps:**
+- **Comprehensive:** “Explore enrollment” (the approved enrollment link, otherwise admissions), plus optional “Meet your supervisors” and “See a sample training weekend” links.
+- **Core:** “Review my prior training”.
+- **Modular:** “Explore courses”, plus “Help me choose what I need”.
+- **Still deciding:** “Talk through my options”.
 
-Booking is also in the header from the first screen, and no contact details are asked for.
+Booking is in the header from the first screen. No email, transcripts, course inventory or clinical/client-contact hours are asked for. The detailed course-by-course estimator at `/detailed` is internal: it requires admin sign-in.
 
-**Safety rules:**
-- **Pricing:** dollar figures appear publicly only after an admin ticks **“These prices are confirmed by NWIOI”** (Admin → Pricing & links). Until then, visitors see “Get a personalized estimate”, on both the quick and detailed estimators.
-- **Links:** placeholder links (`example.com` / `example.org`) are never sent to the public.
-- **Admin preview:** a signed-in admin sees sample pricing and placeholder links, clearly labeled as a preview.
-- **No client-contact questions:** clinical, counseling and teaching hour questions were removed from both the quick and detailed flows.
+Local preview with draft tuition visible:
+
+```bash
+NWIOI_PREVIEW=1 npm start
+```
 
 ## AASECT requirements used (verified 2026-11-19)
 

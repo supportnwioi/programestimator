@@ -149,3 +149,25 @@ body.quick .intro p { max-width: 62ch; }
   .slider-row input[type=range] { flex-basis: 100%; }
 }
 .quick-price .range.personal { white-space: normal; font-size: clamp(1.4rem, 2.2vw, 1.7rem); }
+
+/* ---------- track finder ---------- */
+.rec-name { font-size: 1.45rem; margin: 2px 0 4px; }
+.lead { font-weight: 600; }
+.small-h { font-size: .95rem; margin: 14px 0 4px; }
+.reasons, .included, .notes, .plans { padding-left: 18px; margin: 4px 0; }
+.price-label-sm { margin: 6px 0 0; }
+.price-sm { font-size: 1.35rem; font-weight: 700; margin: 2px 0 6px; }
+.compare { margin-top: 8px; }
+.compare h2 { margin-top: 8px; }
+.track-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.track-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.track-card h3 { margin: 6px 0 4px; }
+.track-card.is-recommended { border: 2px solid var(--accent); }
+.track-card.unavailable { background: var(--surface-2); }
+.track-card .cta { margin-top: 10px; }
+.modular-controls { border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 10px 0; margin: 8px 0; }
+.modular-controls .field input { max-width: 140px; display: block; margin-bottom: 2px; }
+.lines { list-style: none; padding: 0; margin: 8px 0 0; }
+.lines li { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding: 4px 0; }
+@media (max-width: 900px) { .track-grid { grid-template-columns: 1fr; } }
+.track-card .chip, .quick-price .chip { white-space: normal; }

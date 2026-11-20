@@ -24,21 +24,22 @@ function showLogin(msg = '') {
 }
 
 async function loadAll() {
-  const [settings, rulesets, estimates, shares] = await Promise.all([api('/api/admin/settings'), api('/api/admin/rulesets'), api('/api/admin/estimates'), api('/api/admin/shares')]);
-  data = { settings, rulesets, estimates, shares };
+  const [settings, rulesets, estimates, shares, trackData] = await Promise.all([api('/api/admin/settings'), api('/api/admin/rulesets'), api('/api/admin/estimates'), api('/api/admin/shares'), api('/api/admin/tracks')]);
+  data = { settings, rulesets, estimates, shares, tracks: trackData };
 }
 
 function render() {
   document.getElementById('logout').hidden = false;
-  const tabs = [['pricing', 'Pricing & links'], ['rulesets', 'Requirements rulesets'], ['shares', `Shared with admissions (${data.shares.length})`], ['estimates', `Estimates (${data.estimates.length})`]];
-  $.innerHTML = `<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</div>` + ({ pricing, rulesets, shares, estimates }[tab])();
+  const tabs = [['pricing', 'Links & internal rates'], ['tracks', 'Tracks & tuition'], ['rulesets', 'Requirements rulesets'], ['shares', `Shared with admissions (${data.shares.length})`], ['estimates', `Estimates (${data.estimates.length})`]];
+  $.innerHTML = `<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${tab === k}" data-tab="${k}">${l}</button>`).join('')}</div>` + ({ pricing, tracks, rulesets, shares, estimates }[tab])();
 }
 
 const placeholderChip = (u) => (!u || /example\.(com|org|net)/i.test(u) ? '<span class="chip warn">Placeholder: students won’t see this link</span>' : '');
 
 function pricing() {
   const s = data.settings;
-  return `<section class="card"><h2>Pricing and links</h2>
+  return `<section class="card"><h2>Admissions links and internal rates</h2>
+  <p class="small">The booking and contact links are used across the public track finder. The per-hour rates below are used only by the internal <a href="/detailed">detailed estimator</a>. Public tuition comes from the <strong>Tracks & tuition</strong> tab.</p>
   <p class="small muted">These settings are private. Students only see the final price range. Each estimate records the settings used. ${s.updatedAt ? `Last updated ${esc(s.updatedAt)} by ${esc(s.updatedBy)}.` : 'Sample proof-of-concept values — confirm before launch.'}</p>
   <form id="settings">
     <div class="grid2">
@@ -47,15 +48,8 @@ function pricing() {
       <div class="field"><label for="sp">SAR price ($)</label><input type="number" min="0" step="0.01" id="sp" name="sarPrice" value="${s.sarPrice}"></div>
       <div class="field"><label for="bf">Price range buffer (± $)</label><input type="number" min="0" step="1" id="bf" name="priceRangeBuffer" value="${s.priceRangeBuffer}"></div>
     </div>
-    <div class="notice ${s.pricingConfirmed ? 'ok' : 'warn'}">
-      <label style="font-weight:600"><input type="checkbox" id="pc" name="pricingConfirmed" ${s.pricingConfirmed ? 'checked' : ''}> These prices are confirmed by NWIOI. Show dollar estimates to students.</label>
-      <p class="small" style="margin:4px 0 0">${s.pricingConfirmed ? 'Students see price ranges.' : 'Off: students see “Get a personalized estimate” instead of a dollar range. While you’re signed in, the estimator shows you sample pricing, labeled as a preview.'}</p>
-    </div>
     <div class="field"><label for="su">Admissions scheduling URL ${placeholderChip(s.schedulingUrl)}</label><input type="url" id="su" name="schedulingUrl" value="${esc(s.schedulingUrl)}"></div>
     <div class="field"><label for="cu">Admissions contact link (https:// or mailto:) ${placeholderChip(s.contactUrl)}</label><input type="text" id="cu" name="contactUrl" value="${esc(s.contactUrl)}"></div>
-    <h3>Enrollment pages <span class="muted small">(optional)</span></h3>
-    <p class="small muted">If set, visitors starting from scratch see “Explore enrollment options” for that path. Leave blank to show only booking.</p>
-    <div class="grid3">${Object.entries(PATHS).map(([p, l]) => `<div class="field"><label for="en-${p}">${l}</label><input type="url" id="en-${p}" data-enroll="${p}" value="${esc(s.enrollmentUrls?.[p] || '')}" placeholder="https://"></div>`).join('')}</div>
     <h3>What NWIOI provides</h3>
     <p class="small muted">Requirements NWIOI does not provide for a path are shown to students as “may need to complete outside NWIOI” and left out of the price.</p>
     <table><thead><tr><th>Path</th>${Object.values(REQS).map((l) => `<th>${l}</th>`).join('')}</tr></thead><tbody>
@@ -63,6 +57,27 @@ function pricing() {
     </tbody></table>
     <div class="row" style="margin-top:14px"><button class="primary" type="submit">Save settings</button><span id="saved" class="small muted"></span></div>
   </form></section>`;
+}
+
+function tracks() {
+  const { catalog, errors } = data.tracks;
+  const chip = (st) => `<span class="chip ${st === 'approved' ? 'ok' : 'warn'}">${esc(st)}</span>`;
+  const m = (n) => (n > 0 ? money(n) : '—');
+  return `<section class="card"><h2>Tracks & tuition</h2>
+    <p class="small muted">What each credential's tiers include and cost, as shown in the public track finder. Only items marked <strong>approved</strong> show prices and enrollment links to the public. <strong>Draft</strong> items are visible only to signed-in admins and in local preview, labeled as drafts. Saving checks every credential's curriculum, supervision package and minimum period against its active AASECT ruleset.</p>
+    ${errors.length ? `<div class="notice warn small">${errors.map(esc).join('<br>')}</div>` : '<div class="notice ok small">Catalog matches the active AASECT rulesets.</div>'}
+    <table><thead><tr><th>Credential</th><th>Comprehensive</th><th>Core</th><th>Modular</th></tr></thead><tbody>
+    ${Object.entries(catalog.credentials).map(([k, t]) => `<tr><td>${esc(PATHS[k] || k)}</td>
+      <td>${m(t.comprehensive.tuition)} ${chip(t.comprehensive.status)}<div class="small muted">${t.comprehensive.supervision.individualHours} ind + ${t.comprehensive.supervision.groupHours} group h · ${t.comprehensive.minMonths} mo</div></td>
+      <td>${t.core?.defined ? `${m(t.core.tuition)} + SAR ${m(t.core.sarAddOn)} ${chip(t.core.status)}<div class="small muted">${t.core.ceus} CEUs · fit at ${t.core.fitCeus} prior CEUs</div>` : '<span class="muted small">Not defined</span>'}</td>
+      <td>${m(t.modular.ceuRate.amount)}/CEU ${chip(t.modular.ceuRate.status)}<div class="small muted">SAR ${m(t.modular.sar.price)} ${esc(t.modular.sar.status)} · ${m(t.modular.supervision.individualRate)}/ind h, ${m(t.modular.supervision.groupSessionRate)}/${t.modular.supervision.groupSessionHours}h group ${esc(t.modular.supervision.status)}</div></td></tr>`).join('')}
+    </tbody></table>
+    <h3 style="margin-top:16px">Edit catalog</h3>
+    <p class="small muted">Change <code>"status": "draft"</code> to <code>"approved"</code> to publish an offer. Add real links (enroll, supervisors, sampleWeekend, apply, courses) and approved payment plans (<code>{"label","monthly","months","total","status"}</code>).</p>
+    <textarea class="json" id="tracks-json">${esc(JSON.stringify((({ updatedAt, updatedBy, ...c }) => c)(catalog), null, 2))}</textarea>
+    <div id="tracks-msg" class="small"></div>
+    <div class="row" style="margin-top:10px"><button class="primary" data-act="save-tracks">Save catalog</button>${catalog.updatedAt ? `<span class="small muted">Last saved ${esc(catalog.updatedAt)} by ${esc(catalog.updatedBy)}</span>` : ''}</div>
+  </section>`;
 }
 
 function rulesets() {
@@ -129,13 +144,15 @@ $.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const f = ev.target;
   if (f.id === 'login') {
-    try { await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ name: f.name.value, password: f.password.value }) }); await refresh(); }
+    try {
+      await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ name: f.name.value, password: f.password.value }) });
+      const next = new URLSearchParams(location.search).get('next');
+      if (next && /^\/[a-z]/i.test(next)) { location.href = next; return; }
+      await refresh();
+    }
     catch (e) { if (e.message !== 'Sign in required') showLogin(e.message); else showLogin('Incorrect password'); }
   } else if (f.id === 'settings') {
     const body = Object.fromEntries(['educationRatePerCeHour', 'supervisionRatePerHour', 'sarPrice', 'priceRangeBuffer', 'schedulingUrl', 'contactUrl'].map((k) => [k, f[k].value]));
-    body.pricingConfirmed = f.pricingConfirmed.checked;
-    body.enrollmentUrls = {};
-    f.querySelectorAll('[data-enroll]').forEach((i) => { body.enrollmentUrls[i.dataset.enroll] = i.value.trim(); });
     body.offerings = {};
     f.querySelectorAll('[data-offer]').forEach((c) => { const [p, r] = c.dataset.offer.split('.'); (body.offerings[p] ??= {})[r] = c.checked; });
     data.settings = await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) });
@@ -151,6 +168,14 @@ $.addEventListener('click', async (ev) => {
   const act = t.dataset.act;
   const msg = (text, ok) => { const m = document.getElementById('rs-msg'); if (m) { m.style.color = ok ? 'var(--ok)' : 'var(--danger)'; m.innerHTML = text; } };
   try {
+    if (act === 'save-tracks') {
+      const box = document.getElementById('tracks-msg');
+      let body;
+      try { body = JSON.parse(document.getElementById('tracks-json').value); } catch (e) { box.style.color = 'var(--danger)'; box.textContent = 'Invalid JSON: ' + e.message; return; }
+      try { data.tracks = await api('/api/admin/tracks', { method: 'PUT', body: JSON.stringify(body) }); render(); const b2 = document.getElementById('tracks-msg'); b2.style.color = 'var(--ok)'; b2.textContent = 'Saved.'; }
+      catch (e) { box.style.color = 'var(--danger)'; box.innerHTML = esc(e.message) + (e.details ? '<br>' + e.details.map(esc).join('<br>') : ''); }
+      return;
+    }
     if (act === 'check') { t.disabled = true; t.textContent = 'Checking…'; await api('/api/admin/rulesets/check', { method: 'POST' }); await refresh(); }
     else if (act === 'draft') { const d = await api(`/api/admin/rulesets/${t.dataset.path}/draft`, { method: 'POST' }); editing = d.id; await refresh(); document.getElementById('editor')?.scrollIntoView(); }
     else if (act === 'edit') { editing = t.dataset.id; render(); document.getElementById('editor')?.scrollIntoView(); }

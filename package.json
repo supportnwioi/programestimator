@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test test/engine.test.js test/extract.test.js test/rulesets.test.js test/quick.test.js",
+    "test": "node --test test/engine.test.js test/extract.test.js test/rulesets.test.js test/tracks.test.js",
     "start": "node server.js",
     "e2e": "node --test test/e2e.test.js"
   },

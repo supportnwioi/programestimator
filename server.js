@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import * as store from './src/store.js';
 import { runEstimate } from './src/estimate.js';
-import { quickEstimate, benchmarks, isPlaceholderUrl } from './src/quickEstimate.js';
+import { trackEstimate, validateCatalog, benchmarks } from './src/tracks.js';
+import { usableLink } from './src/links.js';
 import { reviewDocument, aiAvailable } from './src/extract.js';
 import { checkForChanges, createDraft, updateDraft, approveDraft, setEnabled, validateRuleset } from './src/rulesetAdmin.js';
 
@@ -28,7 +29,7 @@ function publicRuleset(r) {
     })),
     // Hour-count questions (clinical, counseling or teaching hours) are not asked publicly.
     outside: (r.outside || []).filter((o) => o.question && o.kind !== 'hours').map((o) => ({ key: o.key, question: o.question, kind: o.kind, label: o.label })),
-    quick: benchmarks(r),
+    benchmarks: benchmarks(r),
   };
 }
 
@@ -36,27 +37,37 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 
 // Placeholder links and unconfirmed prices are never shown to the public. A
 // signed-in admin sees them in preview mode, clearly labeled.
+// Preview mode shows draft tuition and placeholder links, clearly labeled:
+// for a signed-in admin, or for everyone when NWIOI_PREVIEW=1 (local preview only).
+const PREVIEW_ALL = process.env.NWIOI_PREVIEW === '1';
+const isPreview = (req) => PREVIEW_ALL || Boolean(adminUser(req));
 function publicLinks(s, preview) {
-  const link = (u) => (!isPlaceholderUrl(u) ? { url: u, placeholder: false } : preview && u ? { url: u, placeholder: true } : null);
-  const enrollment = {};
-  for (const [k, u] of Object.entries(s.enrollmentUrls || {})) enrollment[k] = link(u);
-  return { scheduling: link(s.schedulingUrl), contact: link(s.contactUrl), enrollment };
+  return { scheduling: usableLink(s.schedulingUrl, preview), contact: usableLink(s.contactUrl, preview) };
 }
+const activeRulesets = () => Object.fromEntries(['sex_therapist', 'sexuality_counselor', 'sexuality_educator'].map((k) => [k, store.rulesets.active(k)]).filter(([, r]) => r));
 
 app.get('/api/config', (req, res) => {
   const s = store.settings.get();
-  const preview = Boolean(adminUser(req));
-  const paths = ['sex_therapist', 'sexuality_counselor', 'sexuality_educator'].map((k) => store.rulesets.active(k)).filter(Boolean).map(publicRuleset);
-  res.json({ paths, links: publicLinks(s, preview), pricingConfirmed: s.pricingConfirmed === true, preview, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
+  const preview = isPreview(req);
+  const paths = Object.values(activeRulesets()).map(publicRuleset);
+  res.json({ paths, links: publicLinks(s, preview), preview, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
 });
 
-// One-page estimator: aggregate hours from sliders, priced server-side.
-app.post('/api/quick-estimate', (req, res) => {
+// Track finder: recommend an NWIOI tier for a credential and price it.
+app.post('/api/track-estimate', (req, res) => {
   const r = activeEnabled(req.body?.path);
-  if (!r) return res.status(400).json({ error: 'This certification path is not available right now.' });
+  if (!r) return res.status(400).json({ error: 'This credential is not available right now.' });
   const b = req.body || {};
   const val = (v) => (v === 'unsure' ? 'unsure' : v === null || v === undefined || v === '' ? null : Number(v));
-  const result = quickEstimate(r, store.settings.get(), { education: val(b.education), supervision: val(b.supervision), sar: b.sar ?? null }, { preview: Boolean(adminUser(req)) });
+  const s = store.settings.get();
+  const catalog = store.tracks.get();
+  if (!catalog?.credentials?.[r.path]) return res.status(400).json({ error: 'No NWIOI tracks are configured for this credential yet.' });
+  const m = b.modular && typeof b.modular === 'object' ? b.modular : {};
+  const result = trackEstimate(catalog, r, {
+    education: val(b.education), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
+    coreSar: typeof b.coreSar === 'boolean' ? b.coreSar : null,
+    modular: { ceus: m.ceus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
+  }, { preview: isPreview(req), links: { booking: s.schedulingUrl, contact: s.contactUrl } });
   res.json(result);
 });
 
@@ -126,9 +137,10 @@ app.post('/api/estimate', (req, res) => {
     pricing: { educationRatePerCeHour: settings.educationRatePerCeHour, supervisionRatePerHour: settings.supervisionRatePerHour, sarPrice: settings.sarPrice, priceRangeBuffer: settings.priceRangeBuffer, offerings: settings.offerings[r.path], settingsUpdatedAt: settings.updatedAt },
     price, calc, public: pub, entryCount: intake.entries.length,
   });
-  // Unconfirmed (sample) pricing is never shown to the public as an offer.
-  if (settings.pricingConfirmed !== true && !adminUser(req)) return res.json({ estimateId: id, ...pub, range: null, personalized: true });
-  res.json({ estimateId: id, ...pub, preview: settings.pricingConfirmed !== true });
+  // The detailed estimator is an internal tool: its itemized retail pricing is
+  // shown only to signed-in admins, never as public tuition.
+  if (!adminUser(req)) return res.json({ estimateId: id, ...pub, range: null, personalized: true });
+  res.json({ estimateId: id, ...pub, preview: true });
 });
 
 // ---------------- public: share with admissions (optional) ----------------
@@ -194,11 +206,6 @@ app.put('/api/admin/settings', requireAdmin, (req, res) => {
     ...cur, educationRatePerCeHour: money(b.educationRatePerCeHour, cur.educationRatePerCeHour), supervisionRatePerHour: money(b.supervisionRatePerHour, cur.supervisionRatePerHour),
     sarPrice: money(b.sarPrice, cur.sarPrice), priceRangeBuffer: money(b.priceRangeBuffer, cur.priceRangeBuffer),
     schedulingUrl: url(b.schedulingUrl, cur.schedulingUrl), contactUrl: url(b.contactUrl, cur.contactUrl), offerings,
-    pricingConfirmed: typeof b.pricingConfirmed === 'boolean' ? b.pricingConfirmed : cur.pricingConfirmed === true,
-    enrollmentUrls: Object.fromEntries(Object.keys(store.DEFAULT_SETTINGS.enrollmentUrls).map((k) => {
-      const v = b.enrollmentUrls?.[k];
-      return [k, v === '' ? '' : url(v, cur.enrollmentUrls?.[k] || '')];
-    })),
     updatedAt: new Date().toISOString(), updatedBy: req.admin,
   };
   store.settings.save(next);
@@ -215,9 +222,28 @@ app.put('/api/admin/rulesets/:id', requireAdmin, wrap((req) => updateDraft(req.p
 app.post('/api/admin/rulesets/:id/approve', requireAdmin, wrap((req) => approveDraft(req.params.id, req.admin, req.body || {})));
 app.post('/api/admin/paths/:path/enabled', requireAdmin, wrap((req) => setEnabled(req.params.path, req.body?.enabled)));
 
+app.get('/api/admin/tracks', requireAdmin, (req, res) => {
+  const catalog = store.tracks.get();
+  res.json({ catalog, errors: validateCatalog(catalog, activeRulesets()) });
+});
+app.put('/api/admin/tracks', requireAdmin, (req, res) => {
+  const catalog = req.body;
+  if (!catalog || typeof catalog !== 'object' || !catalog.credentials) return res.status(400).json({ error: 'Catalog must include "credentials".' });
+  const errors = validateCatalog(catalog, activeRulesets());
+  if (errors.length) return res.status(400).json({ error: 'Catalog does not match the AASECT requirements', details: errors });
+  catalog.updatedAt = new Date().toISOString();
+  catalog.updatedBy = req.admin;
+  store.tracks.save(catalog);
+  res.json({ catalog, errors: [] });
+});
+
 app.get('/api/admin/estimates', requireAdmin, (req, res) => res.json(store.estimates.all().reverse().slice(0, 200)));
 app.get('/api/admin/shares', requireAdmin, (req, res) => res.json(store.shares.all().sort((a, b) => b.createdAt.localeCompare(a.createdAt))));
 app.get('/api/admin/shares/:id/files/:name', requireAdmin, (req, res) => res.download(store.shares.filePath(req.params.id, req.params.name)));
+
+// ---------------- internal pages ----------------
+// The detailed course-by-course estimator is for internal (admin) use.
+app.get(['/detailed', '/detailed.html'], (req, res, next) => (adminUser(req) ? next() : res.redirect('/admin?next=/detailed')));
 
 // ---------------- static ----------------
 app.use(express.static(path.join(store.ROOT, 'public'), { extensions: ['html'] }));
@@ -227,6 +253,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   app.listen(PORT, () => {
     console.log(`NWIOI estimator running at http://localhost:${PORT}  (admin: /admin)`);
     console.log(`Document review: ${aiAvailable() ? 'Claude (AI)' : 'offline demo extractor — set ANTHROPIC_API_KEY for AI review'}`);
+    if (PREVIEW_ALL) console.log('PREVIEW MODE: draft tuition and placeholder links are visible to everyone (local review only).');
     if (!process.env.NWIOI_ADMIN_PASSWORD) console.log(`Admin password: ${ADMIN_PASSWORD} (set NWIOI_ADMIN_PASSWORD to choose one)`);
   });
 }
