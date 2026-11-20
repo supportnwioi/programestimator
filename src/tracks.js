@@ -139,6 +139,39 @@ export function priorSources(b, rules, college = {}, ce = {}) {
   };
 }
 
+/**
+ * What may still be needed after Core, from hour totals only. A curriculum review decides how
+ * much prior coursework actually fills the gap, so this is a range:
+ *   best case  – prior hours fill requirements Core leaves open;
+ *   worst case – prior hours repeat what Core already covers (only hours beyond what Core covers
+ *                in that category must fall in the gap).
+ * With a curriculum mapping, each category is handled on its own; without one, the 51-hour gap
+ * isn't split and only an "up to" figure is given.
+ */
+export function afterCore(b, core, ck, sk, tot) {
+  const m = core.curriculumMapping || null;
+  const gapTotal = b.education - core.ceus;
+  const out = { status: m ? 'mapped' : 'pending', gapTotal, gapCore: m ? b.core - m.core : null, gapSkills: m ? b.skills - m.skills : null,
+    coveredCore: m ? m.core : null, coveredSkills: m ? m.skills : null, live: m?.live || null };
+  const cat = (total, covered, prior) => {
+    const gap = total - covered;
+    return { gap, best: Math.max(0, gap - prior), worst: Math.max(0, gap - Math.max(0, prior - covered)) };
+  };
+  if (m && ck.state === 'hours' && sk.state === 'hours') {
+    const c1 = cat(b.core, m.core, ck.hours), c2 = cat(b.skills, m.skills, sk.hours);
+    return { ...out, basis: 'categories', min: c1.best + c2.best, max: c1.worst + c2.worst,
+      minCore: c1.best, maxCore: c1.worst, minSkills: c2.best, maxSkills: c2.worst, upTo: (c1.worst - c1.best) + (c2.worst - c2.best) };
+  }
+  const prior = ck.state === 'hours' && sk.state === 'hours' ? ck.hours + sk.hours
+    : Math.max(tot.state === 'hours' ? tot.hours : 0, (ck.state === 'hours' ? ck.hours : 0) + (sk.state === 'hours' ? sk.hours : 0));
+  if (prior > 0) {
+    const max = Math.max(0, gapTotal - Math.max(0, prior - core.ceus));
+    const min = Math.max(0, gapTotal - prior);
+    return { ...out, basis: ck.state === 'hours' && sk.state === 'hours' ? 'categories' : 'total', min, max, upTo: Math.min(prior, gapTotal) };
+  }
+  return { ...out, basis: 'none', min: gapTotal, max: gapTotal, upTo: 0 };
+}
+
 export function priorCoverage(b, core, ck, sk, total = { state: 'unanswered' }) {
   const mapping = core.curriculumMapping || null;
   const gap = b.education - core.ceus;
@@ -240,6 +273,13 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const dayHours = catalog.trainingDay?.hours || 8;
   const prior = { ...cov, planningRate: planRateVisible ? money(planRate.perCeu) : null, libraryNote: catalog.library?.note || null,
     gapCost: planRateVisible ? money(cov.gapBeforePrior * planRate.perCeu) : null,
+    afterCore: (() => {
+      const ac = afterCore(b, c, ck, sk, tot);
+      const r = planRateVisible ? planRate.perCeu : null;
+      return { ...ac, rate: r !== null ? money(r) : null,
+        costMin: r !== null ? money(ac.min * r) : null, costMax: r !== null ? money(ac.max * r) : null,
+        combinedMin: r !== null && cVisible ? money(c.tuition + ac.min * r) : null, combinedMax: r !== null && cVisible ? money(c.tuition + ac.max * r) : null };
+    })(),
     days: (cov.state === 'known' || cov.state === 'rough') && cov.covered >= dayHours ? Math.round(cov.covered / dayHours) : 0, dayHours,
     sources,
     // Potential savings: the same preliminary hour count shown in the result × the planning rate.

@@ -114,8 +114,14 @@ Monthly amounts are rounded to the cent, and the final payment absorbs the round
    - The required planning note: NWIOI helps review transcripts and CE certificates; AASECT makes the final determination.
    - Then **Review my prior training**.
    - **Two remaining-coursework figures, labeled separately** (shown once both category hours are entered):
-     - **After Core Program:** Core’s 99 hours leave a 51-hour gap ($1,785 at $35 per hour), assuming all package hours apply. Prior coursework reduces that only where it covers what Core leaves open. With `core.curriculumMapping`, that's exact by category and overlap is counted once. Without a mapping, the reduced figure is shown as conditional and marked **Rough planning estimate**.
-     - **À La Carte only (without Core), based on your answers:** (90 − core hours) + (60 − skills hours). For example, 60 + 29 gives 61 hours, or $2,135. The À La Carte row labels it **Estimated coursework still needed**, with the cost as “Estimated coursework cost at $35 per hour”.
+     - **What you may still need after Core** (shown under the Core offer and in the result), from hour totals only:
+       - **Mappings:** Sexuality Educator uses the working split of **39 Core Knowledge + 60 Sexuality Education Skills Training**, which leaves 51 Core Knowledge hours. Therapist and Counselor are pending until their course lists are mapped, so they show the 51-hour gap without a category split.
+       - **It's a range, not a promise.** The best case is that prior hours fill what Core leaves open. The worst case is that they repeat what Core already covers. Only hours beyond what Core covers in a category must fall in the gap.
+       - **Example:** an Educator with 20 prior Core Knowledge hours gets “Up to 20 of your prior hours could reduce the coursework you still need: estimated 31–51 hours remaining”, with an estimated cost of $1,085–$1,785 if purchased at $35 per hour.
+       - Educator skills hours never reduce the gap, because Core covers all 60.
+       - A curriculum review confirms how much prior coursework actually fills the gap.
+       - If the mapping gains `live: {core, skills}`, Core’s live hours are shown too.
+     - **À La Carte only (without Core), based on your answers:** (90 − core hours) + (60 − skills hours). For example, 60 + 29 gives 61 hours, or $2,135. The À La Carte row labels it **Estimated coursework still needed**, with the cost as “Estimated cost if purchased at $35 per hour”.
    - Hours with an unknown category stay **unassigned**. A rough total never makes a category complete, and never gives a remaining-CEU or cost estimate or says how much can be skipped. Those appear only once both category hours are entered.
    - “I’m not sure” offers the transcript and CE review directly.
 5. **Core Program** and **À La Carte** as two compact rows, with the comparison and builder behind secondary links.

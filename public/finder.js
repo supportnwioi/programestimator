@@ -200,6 +200,34 @@ function priorQuestion(p) {
     </div>`, 'by-category', 'expand categories')}`;
 }
 
+// What may still be needed after Core, from hour totals. A curriculum review decides how much
+// prior coursework actually fills the gap, so rough answers give a range, never a promise.
+const hrsRange = (a, b2) => (a === b2 ? plural(a, 'hour') : `${a}–${b2} hours`);
+const moneyRange = (a, b2) => (a === b2 ? a : `${a}–${b2}`);
+function afterCoreText(ac, b) {
+  if (!ac) return '';
+  const label = esc(b.trainingLabel);
+  const gap = ac.status === 'mapped'
+    ? `Core covers ${ac.coveredCore} Core Knowledge and ${ac.coveredSkills} ${label} hours, leaving <strong>${[ac.gapCore ? `${ac.gapCore} Core Knowledge` : '', ac.gapSkills ? `${ac.gapSkills} ${label}` : ''].filter(Boolean).join(' and ') || 'no'} hours</strong> before prior education.`
+    : `Core’s 99 hours leave about <strong>${ac.gapTotal} hours</strong> of the ${b.education}. The split between Core Knowledge and skills training is still being confirmed for this credential.`;
+  const range = ac.min === ac.max && ac.basis === 'none' ? ''
+    : ` ${ac.upTo > 0 ? `Up to ${ac.upTo} of your prior hours could reduce the coursework you still need: ` : ''}estimated <strong data-testid="after-core-range">${hrsRange(ac.min, ac.max)}</strong> remaining${ac.status === 'mapped' && ac.basis === 'categories' && ac.maxSkills === 0 && ac.gapSkills === 0 ? ' (Core Knowledge)' : ''}.`;
+  const cost = ac.costMin ? ` <span data-testid="after-core-cost">Estimated cost if purchased at ${esc(ac.rate)} per hour: <strong>${moneyRange(ac.costMin, ac.costMax)}</strong>.</span>` : '';
+  const live = ac.live ? ` Core includes ${ac.live.core ?? '—'} live Core Knowledge and ${ac.live.skills ?? '—'} live ${label} hours.` : '';
+  const review = ac.min !== ac.max ? ' A curriculum review will confirm how much your prior coursework fills.' : '';
+  return `${gap}${range}${cost}${live}${review}`;
+}
+
+function afterCoreBlock() {
+  const ac = result.prior.afterCore;
+  if (!ac) return '';
+  return `<div class="after-core" data-testid="after-core">
+    <h4 class="pay-h">What you may still need after Core</h4>
+    <p class="small">${afterCoreText(ac, result.benchmarks)}</p>
+    ${ac.combinedMin ? `<p class="small muted" data-testid="after-core-total">With Core tuition: ${moneyRange(ac.combinedMin, ac.combinedMax)} estimated in total. Planning estimate.</p>` : ''}
+  </div>`;
+}
+
 // Payoff: potential time and coursework savings, side by side, from the same hour count.
 function savingsBlock(pr) {
   const sv = pr.potentialSavings;
@@ -264,45 +292,10 @@ function quickResult() {
     const l = pr.live?.[k];
     if (l) lines.push(`<li data-testid="live-${k}">Live ${esc(label)}: ${l.hours} of ${l.min} required live hours</li>`);
   }
-  let estimate = '';
-  if (hasCat) {
-    const est = [];
-    // After Core: start from the hours the 99-hour package leaves open (assuming all package hours
-    // apply), then reduce only for prior coursework that covers a remaining requirement. With a
-    // curriculum mapping that's exact by category; without one it's shown as conditional.
-    const start = `Core’s 99 hours leave about <strong>${plural(pr.gapBeforePrior, 'hour')}</strong> of coursework${pr.gapCost ? ` (estimated coursework cost at ${esc(pr.planningRate)} per hour: <strong data-testid="gap-cost">${esc(pr.gapCost)}</strong>)` : ''}, assuming all package hours apply to your requirements.`;
-    let after;
-    if (pr.mappingKnown) {
-      after = pr.remaining === 0
-        ? ' Your prior coursework may cover the requirements Core leaves open.'
-        : ` Counting prior coursework only where it covers what Core leaves open, estimated coursework still needed: about <strong>${plural(pr.remaining, 'hour')}</strong> (${pr.remainingCore} core knowledge, ${pr.remainingSkills} ${esc(trainingLower)})${pr.additional ? `, estimated coursework cost at ${esc(pr.planningRate)} per hour: <strong>${esc(pr.additional.display)}</strong>` : ''}.`;
-    } else if (pr.counted > 0) {
-      after = pr.remaining === 0
-        ? ' If your prior coursework covers the requirements Core leaves open, it could cover all of them.'
-        : ` If your prior coursework covers requirements Core leaves open, that could drop to about <strong>${plural(pr.remaining, 'hour')}</strong>${pr.additional ? ` (<strong>${esc(pr.additional.display)}</strong>)` : ''}.`;
-    } else after = '';
-    est.push(`<li data-testid="core-line"><strong>After Core Program:</strong> ${start}${after}${pr.rough ? ' <span class="chip warn" data-testid="rough-chip">Rough planning estimate</span>' : ''}</li>`);
-    if (cw.state === 'known') est.push(`<li data-testid="ala-line"><strong>À La Carte only (without Core), based on your answers:</strong> estimated coursework still needed: about <strong>${plural(cw.remaining, 'hour')}</strong> (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `. Estimated coursework cost at ${esc(cw.cost.rate)} per hour: <strong>${esc(cw.cost.display)}</strong>` : ''}.</li>`);
-    estimate = `<ul class="small result-lines" data-testid="result-lines">${est.join('')}</ul>`;
-  } else {
-    estimate = `<p class="small" data-testid="unassigned-note">These hours aren’t assigned to Core Knowledge or ${esc(b.trainingLabel)} yet, so we can’t say which requirements they cover. <button type="button" class="link" data-open-categories>I know my hours by category</button></p>`;
-  }
-  const plan = hasCat && pr.remaining > 0 ? det('plan-remaining', 'Plan your remaining coursework', `
-      <div class="grid2 additional">
-        <div class="field"><label for="add-nwioi">CEUs you’d take with NWIOI</label>
-          <input type="number" id="add-nwioi" data-add="nwioiCeus" min="0" max="${pr.remaining}" step="1" inputmode="numeric" value="${pr.nwioiAdditionalCeus}">
-          <span class="small muted">${esc(pr.libraryNote || '')}</span></div>
-        ${pr.outsideCeus > 0 ? `<div class="field"><label for="add-outside">Expected cost of your other ${plural(pr.outsideCeus, 'CEU')} (optional)</label>
-          <input type="number" id="add-outside" data-add="outsideCost" min="0" step="1" inputmode="decimal" value="${pr.outsideCost ?? ''}" placeholder="$">
-          <span class="small muted">Other providers set their own prices.</span></div>` : ''}
-      </div>
-      <table class="math combined-table" data-testid="combined-table"><tbody>
-        <tr><td>NWIOI tuition · Core Program</td><td class="amt">${esc(core.price.display || '—')}</td></tr>
-        ${pr.nwioiAdditionalCeus > 0 ? `<tr><td>Additional NWIOI coursework · ${plural(pr.nwioiAdditionalCeus, 'CEU')}</td><td class="amt" data-testid="additional-cost">${esc(pr.additional?.display || 'Confirm with admissions')}</td></tr>` : ''}
-        ${pr.outsideCeus > 0 ? `<tr><td>Coursework with other institutes · ${plural(pr.outsideCeus, 'CEU')}</td><td class="amt">${pr.outsideCost !== null ? esc('$' + Math.round(pr.outsideCost).toLocaleString('en-US')) : '<span class="muted">Not included</span>'}</td></tr>` : ''}
-        ${pr.combined ? `<tr class="total"><td>Estimated combined cost${pr.combined.complete ? '' : ' <span class="small muted">(without other institutes)</span>'}</td><td class="amt" data-testid="combined-cost">${esc(pr.combined.display)}</td></tr>` : ''}
-      </tbody></table>
-      ${pr.combined ? `<p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>` : ''}`, 'plan-remaining') : '';
+  const est = [`<li data-testid="core-line"><strong>What you may still need after Core:</strong> ${afterCoreText(pr.afterCore, b)}</li>`];
+  if (hasCat && cw.state === 'known') est.push(`<li data-testid="ala-line"><strong>À La Carte only (without Core), based on your answers:</strong> estimated coursework still needed: about <strong>${plural(cw.remaining, 'hour')}</strong> (${cw.remainingCore} core knowledge, ${cw.remainingSkills} ${esc(trainingLower)})${cw.cost ? `. Estimated cost if purchased at ${esc(cw.cost.rate)} per hour: <strong>${esc(cw.cost.display)}</strong>` : ''}.</li>`);
+  const estimate = `<ul class="small result-lines" data-testid="result-lines">${est.join('')}</ul>
+    ${hasCat ? '' : `<p class="small" data-testid="unassigned-note">These hours aren’t assigned to Core Knowledge or ${esc(b.trainingLabel)} yet, so we can’t say which requirements they cover. <button type="button" class="link" data-open-categories>I know my hours by category</button></p>`}`;
   return `<div class="quick-result" data-testid="quick-result">
     <p class="result-h" data-testid="result-h">Here’s what may count toward your education requirements</p>
     ${savingsBlock(pr)}
@@ -311,7 +304,6 @@ function quickResult() {
     ${estimate}
     ${note}
     ${review}
-    ${plan}
   </div>`;
 }
 
@@ -335,7 +327,7 @@ function optionsSection() {
     : `<span class="opt-label">Package tuition</span><strong class="row-amt confirm" data-testid="rec-price">${esc(p.confirmText)}</strong>`;
   const alaPrice = cw.state === 'known'
     ? `<span class="opt-label">Estimated coursework still needed</span><strong class="row-amt" data-testid="ala-remaining">${plural(cw.remaining, 'hour')}</strong>
-       <span class="small" data-testid="ala-cost-line">${cw.cost ? `Estimated coursework cost at ${esc(cw.cost.rate)} per hour: <strong data-testid="ala-coursework-cost">${esc(cw.cost.display)}</strong>` : 'Ask admissions about cost'}</span>
+       <span class="small" data-testid="ala-cost-line">${cw.cost ? `Estimated cost if purchased at ${esc(cw.cost.rate)} per hour: <strong data-testid="ala-coursework-cost">${esc(cw.cost.display)}</strong>` : 'Ask admissions about cost'}</span>
        <span class="small muted" data-testid="ala-basis">Based on your answers, buying courses individually without Core</span>${draftChip(cw.cost?.draft)}`
     : '<span class="opt-label">Price</span><strong class="row-amt row-amt-text">Based on what you choose</strong>';
   return `<section class="card rows" data-testid="options" aria-labelledby="rows-h">
@@ -349,6 +341,7 @@ function optionsSection() {
       </div>
       <div class="row-price">${corePrice}</div>
       ${paymentOptions() || (result.scholarship ? `<div class="payments">${equityBlock()}</div>` : '')}
+      ${afterCoreBlock()}
     </div>
     <div class="opt-row" data-track="alaCarte">
       <div class="row-main">
@@ -414,7 +407,7 @@ function alaCourses() {
       <input type="number" id="${id}" data-ala="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
       <span class="small muted">${hint}</span></div>`;
   return `<h3 class="small-h">Coursework</h3>
-    ${cw.state === 'known' ? `<p class="small" data-testid="ala-courses-estimate">Estimated coursework still needed, based on your answers: about <strong>${plural(cw.remaining, 'hour')}</strong>${cw.cost ? `. Estimated coursework cost at ${esc(cw.cost.rate)} per hour: ${esc(cw.cost.display)}` : ''}. Planning estimate.</p>`
+    ${cw.state === 'known' ? `<p class="small" data-testid="ala-courses-estimate">Estimated coursework still needed, based on your answers: about <strong>${plural(cw.remaining, 'hour')}</strong>${cw.cost ? `. Estimated cost if purchased at ${esc(cw.cost.rate)} per hour: ${esc(cw.cost.display)}` : ''}. Planning estimate.</p>`
       : '<p class="small muted">Add your hours by category above to see what you may still need.</p>'}
     <div class="grid2">
       ${num('ala-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, eduHint(sug.coreCeus))}

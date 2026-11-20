@@ -405,7 +405,8 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   assert.match(squash(await text(page, '[data-testid="ce-line"]')), /about 16 hours \(10 AASECT-approved; 12 from another CE body, counted at half value\)/);
   assert.match(squash(await text(page, '[data-testid="pending"]')), /4 CE credits pending review/);
   assert.match(squash(await text(page, '[data-testid="unassigned-note"]')), /aren’t assigned to Core Knowledge or Sexuality Counseling Skills Training yet/);
-  assert.equal(await page.locator('[data-testid="core-line"], [data-testid="combined-cost"], [data-testid="ala-coursework-cost"]').count(), 0, 'no remaining or skip promise from a rough total');
+  assert.equal(await page.locator('[data-testid="ala-coursework-cost"], [data-testid="ala-line"]').count(), 0, 'no À La Carte figure from a rough total');
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /Up to 51 of your prior hours could reduce the coursework you still need: estimated 0–44 hours remaining/, 'rough totals give a range, not a promise (106 hours: at least 7 must fall outside the 99 Core covers)');
   assert.equal(squash(await text(page, '[data-testid="planning-note"]')), NOTE);
   assert.equal(await page.locator('.quick-result .btn.primary').count(), 1);
   assert.equal(await text(page, '.quick-result [data-testid="primary-cta"]'), 'Review my prior training');
@@ -418,10 +419,10 @@ test('Track finder: Yes path — college plus both CE types; unsure CE pending; 
   assert.match(squash(await text(page, '[data-testid="cat-line"]')), /Core Knowledge: 60 of 90 hours · Sexuality Counseling Skills Training: 29 of 60 hours/);
   assert.match(squash(await text(page, '[data-testid="unassigned"]')), /About 17 more hours not yet assigned to a category/);
   assert.match(squash(await text(page, '[data-testid="live-core"]')), /10 of 15 required live hours/);
-  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /^À La Carte only \(without Core\), based on your answers: estimated coursework still needed: about 61 hours \(30 core knowledge, 31 sexuality counseling skills training\)\. Estimated coursework cost at \$35 per hour: \$2,135\.$/);
-  assert.match(squash(await text(page, '[data-testid="core-line"]')), /^After Core Program: Core’s 99 hours leave about 51 hours of coursework \(estimated coursework cost at \$35 per hour: \$1,785\), assuming all package hours apply to your requirements\. If your prior coursework covers the requirements Core leaves open, it could cover all of them\./);
+  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /^À La Carte only \(without Core\), based on your answers: estimated coursework still needed: about 61 hours \(30 core knowledge, 31 sexuality counseling skills training\)\. Estimated cost if purchased at \$35 per hour: \$2,135\.$/);
+  assert.match(squash(await text(page, '[data-testid="core-line"]')), /^What you may still need after Core: Core’s 99 hours leave about 51 hours of the 150\. The split between Core Knowledge and skills training is still being confirmed for this credential\. Up to 51 of your prior hours could reduce the coursework you still need: estimated 0–51 hours remaining\. Estimated cost if purchased at \$35 per hour: \$0–\$1,785\./);
   assert.equal(await text(page, '[data-testid="ala-remaining"]'), '61 hours');
-  assert.match(squash(await text(page, '[data-track="alaCarte"]')), /Estimated coursework still needed\s*61 hours\s*Estimated coursework cost at \$35 per hour: \$2,135\s*Based on your answers, buying courses individually without Core/);
+  assert.match(squash(await text(page, '[data-track="alaCarte"]')), /Estimated coursework still needed\s*61 hours\s*Estimated cost if purchased at \$35 per hour: \$2,135\s*Based on your answers, buying courses individually without Core/);
   assert.equal(await text(page, '[data-testid="ala-coursework-cost"]'), '$2,135');
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$7,450', 'Core tuition fixed');
   await page.close();
@@ -487,26 +488,32 @@ test('Track finder (preview): two compact options below the result; Core tuition
   await page.close();
 });
 
-test('Track finder (preview): category hours drive the detailed estimate — 25 → 26 beyond Core → $910 → combined', async () => {
+test('Track finder (preview): what you may still need after Core — Educator 39 + 60 mapping, ranges, pending splits', async () => {
   const page = await newPage(BASE2);
-  for (const [cred, combined] of [['sex_therapist', '$9,110'], ['sexuality_counselor', '$8,360'], ['sexuality_educator', '$7,860']]) {
+  await choose(page, 'sexuality_educator');
+  await settled(page);
+  // Under the Core offer, before any prior education.
+  assert.match(squash(await text(page, '[data-testid="after-core"]')), /^What you may still need after Core Core covers 39 Core Knowledge and 60 Sexuality Education Skills Training hours, leaving 51 Core Knowledge hours before prior education\. Estimated cost if purchased at \$35 per hour: \$1,785\. With Core tuition: \$8,735 estimated in total\./);
+  // 20 prior Core Knowledge hours: 31–51 hours, $1,085–$1,785.
+  await categories(page, 20, 0);
+  await settled(page);
+  const line = squash(await text(page, '[data-testid="core-line"]'));
+  assert.match(line, /Up to 20 of your prior hours could reduce the coursework you still need: estimated 31–51 hours remaining \(Core Knowledge\)\. Estimated cost if purchased at \$35 per hour: \$1,085–\$1,785\. A curriculum review will confirm how much your prior coursework fills\./);
+  assert.match(squash(await text(page, '[data-testid="after-core"]')), /With Core tuition: \$8,035–\$8,735 estimated in total/);
+  assert.match(squash(await text(page, '[data-testid="ala-line"]')), /^À La Carte only \(without Core\), based on your answers: estimated coursework still needed: about 130 hours/);
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$6,950', 'Core tuition fixed');
+  // Skills hours can't reduce the Educator gap.
+  await hours(page, 'core', 0);
+  await hours(page, 'skills', 40);
+  await settled(page);
+  assert.doesNotMatch(squash(await text(page, '[data-testid="core-line"]')), /Up to/);
+  // Therapist and Counselor: split pending, "up to" from hour totals.
+  for (const cred of ['sex_therapist', 'sexuality_counselor']) {
     await choose(page, cred);
     await categories(page, 15, 10);
     await settled(page);
-    assert.match(squash(await text(page, '[data-testid="core-line"]')), /leave about 51 hours of coursework \(estimated coursework cost at \$35 per hour: \$1,785\).*If your prior coursework covers requirements Core leaves open, that could drop to about 26 hours \(\$910\)\.\s*Rough planning estimate/);
-    if (!(await page.evaluate(() => document.getElementById('plan-remaining')?.open))) await page.click('#plan-remaining summary');
-    assert.equal(await text(page, '[data-testid="combined-cost"]'), combined, cred);
-    assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
+    assert.match(squash(await text(page, '[data-testid="core-line"]')), /Core’s 99 hours leave about 51 hours of the 150\. The split between Core Knowledge and skills training is still being confirmed for this credential\. Up to 25 of your prior hours could reduce the coursework you still need: estimated 26–51 hours remaining\. Estimated cost if purchased at \$35 per hour: \$910–\$1,785\./, cred);
   }
-  await page.fill('#add-nwioi', '10');
-  await settled(page);
-  assert.equal(await text(page, '[data-testid="additional-cost"]'), '$350');
-  await page.fill('#add-outside', '800');
-  await settled(page);
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'add-outside', 'focus stays while typing');
-  await categories(page, 90, 60);
-  await settled(page);
-  assert.match(squash(await text(page, '[data-testid="core-line"]')), /it could cover all of them/);
   await page.close();
 });
 

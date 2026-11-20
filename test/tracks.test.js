@@ -65,16 +65,28 @@ test('Core always includes SAR: tuition is the same whatever the SAR, supervisio
   assert.match(est('sex_therapist', full({ sar: 'yes' })).notes.join(' '), /SAR is included in Core either way, and Core tuition stays the same/);
 });
 
-test('25 prior CEUs → 26 remaining → $910 additional → combined $9,110 / $8,360 / $7,860', () => {
-  const r = PATHS.map((p) => est(p, { core: 15, skills: 10 }).prior);
-  for (const pr of r) {
-    assert.deepEqual([pr.state, pr.rough, pr.nwioiCeus, pr.gapBeforePrior, pr.counted, pr.remaining], ['known', true, 99, 51, 25, 26]);
-    assert.equal(pr.additional.display, '$910');
-    assert.equal(pr.combined.complete, true);
-  }
-  assert.deepEqual(r.map((pr) => pr.combined.display), ['$9,110', '$8,360', '$7,860']);
-  assert.deepEqual(r.map((pr) => pr.priorSavings.display), ['$875', '$875', '$875'], '25 counted hours × planning rate');
-  assert.equal(est('sex_therapist', { core: 0, skills: 0 }).prior.priorSavings, null, 'no savings line when nothing counts');
+test('what may still be needed after Core: a range from hour totals; Educator mapped 39 + 60, Therapist and Counselor pending', () => {
+  // No prior education: the starting gap.
+  const start = PATHS.map((p) => est(p, {}).prior.afterCore);
+  assert.deepEqual(start.map((a) => [a.status, a.min, a.max, a.costMin]), [['pending', 51, 51, '$1,785'], ['pending', 51, 51, '$1,785'], ['mapped', 51, 51, '$1,785']]);
+  assert.deepEqual([start[2].coveredCore, start[2].coveredSkills, start[2].gapCore, start[2].gapSkills], [39, 60, 51, 0]);
+  assert.deepEqual(start.map((a) => a.combinedMin), ['$9,985', '$9,235', '$8,735']);
+  // Educator, 20 prior Core Knowledge hours: 31–51 hours, $1,085–$1,785.
+  const e20 = est('sexuality_educator', { core: 20, skills: 0 }).prior.afterCore;
+  assert.deepEqual([e20.min, e20.max, e20.upTo, e20.costMin, e20.costMax], [31, 51, 20, '$1,085', '$1,785']);
+  // Skills hours can't reduce the Educator gap: Core already covers all 60.
+  const sk = est('sexuality_educator', { core: 0, skills: 40 }).prior.afterCore;
+  assert.deepEqual([sk.min, sk.max], [51, 51]);
+  // Core hours beyond what Core covers (39) must fall in the gap: 60 → at most 30 remain.
+  const e60 = est('sexuality_educator', { core: 60, skills: 10 }).prior.afterCore;
+  assert.deepEqual([e60.min, e60.max], [0, 30]);
+  // Rough totals: "up to" and a range, never a single promise.
+  const tot = est('sexuality_educator', { total: 20 }).prior.afterCore;
+  assert.deepEqual([tot.basis, tot.min, tot.max, tot.upTo], ['total', 31, 51, 20]);
+  const pend = est('sex_therapist', { core: 15, skills: 10 }).prior.afterCore;
+  assert.deepEqual([pend.status, pend.min, pend.max, pend.upTo, pend.costMin, pend.costMax], ['pending', 26, 51, 25, '$910', '$1,785']);
+  // Prior education never changes Core tuition.
+  assert.equal(est('sexuality_educator', { core: 60, skills: 10 }).tracks.core.price.amount, 6950);
   assert.equal(est('sex_therapist', { core: 15, skills: 10 }, { preview: false }).prior.priorSavings.display, '$875', 'planning rate approved: shows publicly');
 });
 

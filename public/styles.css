@@ -481,3 +481,4 @@ body.finder details.equity { margin: 6px 0 0; border: 1px solid var(--line); bor
 body.finder details.equity > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .95rem; min-height: 32px; display: flex; align-items: center; }
 body.finder details.equity[open] { padding-bottom: 10px; }
 @media (min-width: 681px) { .pay-opt { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.1fr); grid-template-areas: "name amt detail"; align-items: baseline; } .pay-detail { text-align: right; } }
+.after-core { grid-column: 1 / -1; margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; } .after-core p { margin: 2px 0; }

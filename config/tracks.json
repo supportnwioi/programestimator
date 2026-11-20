@@ -29,7 +29,7 @@
         "ceus": 99,
         "includesSar": true,
         "curriculumMapping": null,
-        "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
+        "_mappingNote": "Pending: map the course list to Core Knowledge and skills training hours (adding to 99) before setting curriculumMapping. Until then the calculator shows the 51-hour gap without a category split.",
         "supervision": {
           "individualHours": 26,
           "groupHours": 24,
@@ -77,7 +77,7 @@
         "ceus": 99,
         "includesSar": true,
         "curriculumMapping": null,
-        "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
+        "_mappingNote": "Pending: map the course list to Core Knowledge and skills training hours (adding to 99) before setting curriculumMapping. Until then the calculator shows the 51-hour gap without a category split.",
         "supervision": {
           "individualHours": 15,
           "groupHours": 15,
@@ -125,7 +125,13 @@
         "tuition": 6950,
         "ceus": 99,
         "includesSar": true,
-        "curriculumMapping": null,
+        "curriculumMapping": {
+          "core": 39,
+          "skills": 60,
+          "status": "working",
+          "live": null,
+          "_note": "Working split confirmed for Sexuality Educator Core (39 Core Knowledge + 60 Sexuality Education Skills Training). Set live {core, skills} once the course list shows Core's live hours."
+        },
         "_mappingNote": "When confirmed, set {\"core\": <CKA hours>, \"skills\": <skills training hours>} that add up to 99. Until then, the calculator uses the 51-hour arithmetic gap and labels it a rough planning estimate.",
         "supervision": {
           "individualHours": 5,
