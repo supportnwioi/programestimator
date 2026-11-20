@@ -45,7 +45,7 @@ test('Core tuition and pay in full for all three credentials, with each supervis
   const r = PATHS.map((p) => est(p, {}).tracks.core);
   assert.deepEqual(r.map((t) => t.price.amount), [8200, 7450, 6950]);
   assert.deepEqual(r.map((t) => t.price.display), ['$8,200', '$7,450', '$6,950']);
-  assert.deepEqual(r.map((t) => [t.price.payInFull.display, t.price.payInFull.percent]), [['$7,626.00', 7], ['$6,928.50', 7], ['$6,463.50', 7]]);
+  assert.deepEqual(r.map((t) => [t.price.payInFull.display, t.price.payInFull.percent]), [['$7,790.00', 5], ['$7,077.50', 5], ['$6,602.50', 5]]);
   assert.deepEqual(r.map((t) => t.name), Array(3).fill('Tier I · Core Program'));
   const sup = r.map((t) => t.included.find((x) => x.startsWith('Supervision')));
   assert.match(sup[0], /26 individual hours and 24 group hours/);
@@ -156,7 +156,7 @@ test('À La Carte coursework: category gaps after prior coursework, at the CEU r
   assert.deepEqual([over.remainingCore, over.remainingSkills, over.remaining], [0, 60, 60], 'extra core never fills skills');
   const u = est('sex_therapist', { core: 60, skills: 'unsure' }).tracks.alaCarte.coursework;
   assert.deepEqual([u.state, u.remainingCore, u.remainingSkills, u.unsure, u.cost], ['unresolved', 30, null, true, undefined]);
-  assert.equal(est('sex_therapist', { core: 60, skills: 29 }, { preview: false }).tracks.alaCarte.coursework.cost, null, 'no cost while the rate is draft');
+  assert.equal(est('sex_therapist', { core: 60, skills: 29 }, { preview: false }).tracks.alaCarte.coursework.cost.display, '$2,135', 'À La Carte rate approved: shows publicly');
   for (const p of PATHS) assert.equal(est(p, { core: 60, skills: 29 }).tracks.core.price.amount, est(p, {}).tracks.core.price.amount);
   const fewer = est('sex_therapist', { core: 60, skills: 29, alaCarte: { skillsCeus: 10 } }).tracks.alaCarte;
   assert.equal(fewer.fewerThanNeeded, true);
@@ -206,21 +206,65 @@ test('package savings only when both totals cover the same components and quanti
   assert.equal(s[2], null, 'Educator’s 20 group hours don’t divide into 3-hour sessions, so no savings figure');
 });
 
-test('drafts are hidden publicly; approved offers and the scholarship link show', () => {
+test('drafts are hidden publicly; approved À La Carte rates and the Equity Scholarship show', () => {
   const pub = est('sex_therapist', full({ core: 15, skills: 10 }), { preview: false });
   assert.equal(pub.tracks.core.price.confirmText, 'Confirm Core tuition with admissions');
-  assert.equal(pub.tracks.alaCarte.price.amount, null);
+  assert.deepEqual(pub.tracks.core.paymentOptions, [], 'no payment amounts while Core tuition is draft');
+  assert.equal(pub.tracks.alaCarte.price.display, '$11,045', 'À La Carte approved: courses + NWIOI supervision');
   assert.equal(pub.prior.combined, null);
   assert.equal(pub.savings, null);
   const json = JSON.stringify(pub);
-  for (const leak of ['8,200', '7,626', '$195', '$650']) assert.ok(!json.includes(leak), `public payload leaks ${leak}`);
+  for (const leak of ['8,200', '7,790', '8,036', '$195', '$650']) assert.ok(!json.includes(leak), `public payload leaks ${leak}`);
+  assert.equal(pub.scholarship.title, 'Equity Scholarship');
+  assert.equal(pub.scholarship.plan, null, 'scholarship amounts wait for approved tuition');
   assert.equal(pub.scholarship.application.url, 'https://forms.wix.com/f/7167298250691576552');
   const cat = structuredClone(DEFAULT_CATALOG);
-  Object.assign(cat.credentials.sexuality_educator.core, { status: 'approved', paymentPlans: [{ label: '12 months', monthly: 600, months: 12, total: 7200, status: 'approved' }] });
-  cat.payInFull.status = 'approved';
-  const ok = est('sexuality_educator', {}, { preview: false }, cat).tracks.core;
-  assert.deepEqual([ok.price.amount, ok.price.payInFull.display, ok.price.draft], [6950, '$6,463.50', false]);
-  assert.equal(ok.paymentPlans[0].text, '$600/month for 12 months ($7,200 total)');
+  cat.credentials.sexuality_educator.core.status = 'approved';
+  const ok = est('sexuality_educator', {}, { preview: false }, cat);
+  assert.deepEqual([ok.tracks.core.price.amount, ok.tracks.core.price.payInFull.display, ok.tracks.core.price.draft], [6950, '$6,602.50', false]);
+  assert.deepEqual(ok.tracks.core.paymentOptions.map((o) => o.totalDisplay), ['$6,602.50', '$6,811.00', '$6,950.00']);
+  assert.equal(ok.scholarship.plan.totalDisplay, '$6,602.50');
+});
+
+test('Core payment options: 5% / 2% / standard; monthly to the cent with the final payment adjusted; no fees', () => {
+  const want = {
+    sex_therapist: ['$7,790.00', '$8,036.00', '$8,200.00', '$7,790.00'],
+    sexuality_counselor: ['$7,077.50', '$7,301.00', '$7,450.00', '$7,077.50'],
+    sexuality_educator: ['$6,602.50', '$6,811.00', '$6,950.00', '$6,602.50'],
+  };
+  for (const p of PATHS) {
+    const r = est(p, {});
+    const o = r.tracks.core.paymentOptions;
+    assert.deepEqual(o.map((x) => [x.key, x.months, x.discountPercent]), [['full', 1, 5], ['m12', 12, 2], ['m18', 18, 0]]);
+    assert.deepEqual([...o.map((x) => x.totalDisplay), r.scholarship.plan.totalDisplay], want[p], p);
+    for (const x of [...o.filter((y) => y.monthly), { ...r.scholarship.plan, months: 24 }]) {
+      const sumCents = Math.round(x.monthly * 100) * (x.months - 1) + Math.round(x.final * 100);
+      assert.equal(sumCents, Math.round(x.total * 100), `${p} ${x.months} payments add up exactly`);
+      assert.ok(Math.abs(x.final - x.monthly) < 0.01 * x.months, 'final payment only absorbs rounding');
+    }
+  }
+  const t = est('sex_therapist', {});
+  assert.deepEqual(t.tracks.core.paymentOptions.filter((o) => o.monthly).map((o) => [o.monthlyDisplay, o.finalDisplay]), [['$669.67', '$669.63'], ['$455.56', '$455.48']]);
+  assert.deepEqual([t.scholarship.plan.monthlyDisplay, t.scholarship.plan.finalDisplay], ['$324.58', '$324.66']);
+  // Prior education never changes tuition or payment math.
+  const base = JSON.stringify([t.tracks.core.price, t.tracks.core.paymentOptions, t.scholarship.plan]);
+  for (const i of [{ core: 90, skills: 60 }, { college: { answer: 'yes', unit: 'credits', amount: 9 }, ce: { answer: 'yes', aasect: 20 } }, { total: 150 }]) {
+    const e = est('sex_therapist', i);
+    assert.equal(JSON.stringify([e.tracks.core.price, e.tracks.core.paymentOptions, e.scholarship.plan]), base);
+  }
+});
+
+test('Equity Scholarship: seat count only from a verified admissions record', () => {
+  assert.equal(est('sex_therapist', {}).scholarship.seats, null);
+  assert.equal(est('sex_therapist', {}).scholarship.seatsPerYear, 2);
+  const cat = structuredClone(DEFAULT_CATALOG);
+  cat.equityScholarship.verifiedSeats = { remaining: 1 };
+  assert.equal(est('sex_therapist', {}, { preview: true }, cat).scholarship.seats, null, 'no source/date → not shown');
+  cat.equityScholarship.verifiedSeats = { remaining: 1, year: 2027, asOf: '2027-01-15', source: 'Admissions roster' };
+  assert.deepEqual(est('sex_therapist', {}, { preview: true }, cat).scholarship.seats, { remaining: 1, year: 2027, asOf: '2027-01-15' });
+  // Asking or calculating never changes the record.
+  est('sex_therapist', { core: 10 }, { preview: true }, cat);
+  assert.equal(cat.equityScholarship.verifiedSeats.remaining, 1);
 });
 
 test('next steps: Review my prior training, the course library, and admissions for equity questions', () => {

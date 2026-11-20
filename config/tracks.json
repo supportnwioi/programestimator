@@ -9,15 +9,6 @@
     "modularWhenPriorSupervisionShareAtLeast": 0.2,
     "_note": "If someone has already done at least this share of the credential's supervision target, they no longer need a full supervision package, so À La Carte is recommended."
   },
-  "payInFull": {
-    "rate": 0.07,
-    "status": "draft",
-    "tiers": [
-      "core"
-    ],
-    "appliesToAddOns": false,
-    "_note": "Pay in full: Core package tuition x (1 - rate), rounded to the cent. Not applied to additional coursework or À La Carte."
-  },
   "planningRate": {
     "perCeu": 35,
     "status": "approved",
@@ -27,13 +18,6 @@
     "url": "",
     "note": "Additional NWIOI courses depend on current availability.",
     "_note": "Set url to the NWIOI course library page (for example https://www.nwioi.com/challenges once confirmed)."
-  },
-  "scholarship": {
-    "title": "FIELD Growth Scholarship",
-    "copy": "NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need.",
-    "applicationUrl": "https://forms.wix.com/f/7167298250691576552",
-    "status": "approved",
-    "_note": "Award amounts and whether they combine with pay-in-full savings are decided by NWIOI through the scholarship process, not the calculator."
   },
   "coreKnowledgeExample": "For example, a human sexuality course or a training on sexual development.",
   "credentials": {
@@ -59,7 +43,6 @@
           "Live intensives plus self-paced coursework",
           "Faculty mentorship throughout"
         ],
-        "paymentPlans": [],
         "links": {
           "enroll": "",
           "supervisors": "",
@@ -69,17 +52,17 @@
       "alaCarte": {
         "ceuRate": {
           "amount": 35,
-          "status": "draft"
+          "status": "approved"
         },
         "sar": {
           "price": 650,
-          "status": "draft"
+          "status": "approved"
         },
         "supervision": {
           "individualRate": 195,
           "groupSessionRate": 200,
           "groupSessionHours": 3,
-          "status": "draft"
+          "status": "approved"
         },
         "links": {
           "courses": ""
@@ -109,7 +92,6 @@
           "Live intensives plus self-paced coursework",
           "Faculty mentorship throughout"
         ],
-        "paymentPlans": [],
         "links": {
           "enroll": "",
           "supervisors": "",
@@ -119,17 +101,17 @@
       "alaCarte": {
         "ceuRate": {
           "amount": 35,
-          "status": "draft"
+          "status": "approved"
         },
         "sar": {
           "price": 650,
-          "status": "draft"
+          "status": "approved"
         },
         "supervision": {
           "individualRate": 195,
           "groupSessionRate": 200,
           "groupSessionHours": 3,
-          "status": "draft"
+          "status": "approved"
         },
         "links": {
           "courses": ""
@@ -158,7 +140,6 @@
           "Live intensives plus self-paced coursework",
           "Faculty mentorship throughout"
         ],
-        "paymentPlans": [],
         "links": {
           "enroll": "",
           "supervisors": "",
@@ -168,17 +149,17 @@
       "alaCarte": {
         "ceuRate": {
           "amount": 35,
-          "status": "draft"
+          "status": "approved"
         },
         "sar": {
           "price": 650,
-          "status": "draft"
+          "status": "approved"
         },
         "supervision": {
           "individualRate": 195,
           "groupSessionRate": 200,
           "groupSessionHours": 3,
-          "status": "draft"
+          "status": "approved"
         },
         "links": {
           "courses": ""
@@ -189,5 +170,43 @@
   "trainingDay": {
     "hours": 8,
     "_note": "Used only to describe prior hours as \"about N full days of training\". Confirm the length of an NWIOI training day."
+  },
+  "paymentOptions": {
+    "status": "approved",
+    "fees": 0,
+    "options": [
+      {
+        "key": "full",
+        "label": "Pay in full",
+        "discount": 0.05,
+        "months": 1
+      },
+      {
+        "key": "m12",
+        "label": "12 monthly payments",
+        "discount": 0.02,
+        "months": 12
+      },
+      {
+        "key": "m18",
+        "label": "18 monthly payments",
+        "discount": 0,
+        "months": 18
+      }
+    ],
+    "_note": "Applies to Core Program tuition only. Total = tuition x (1 - discount), rounded to the cent. Monthly = total / months rounded to the cent; the final payment is adjusted so the payments add up to the exact total. No installment fees."
+  },
+  "equityScholarship": {
+    "status": "approved",
+    "title": "Equity Scholarship",
+    "discount": 0.05,
+    "months": 24,
+    "seatsPerYear": 2,
+    "copy": "NWIOI offers up to two Equity Scholarship seats each year across our Core Programs. Approved recipients receive 5% off tuition and can spread payments over 24 months with no added fees. Ask us about eligibility and availability.",
+    "verifiedSeats": null,
+    "_verifiedSeatsNote": "Only set from a verified admissions record, e.g. {\"remaining\": 1, \"year\": 2027, \"asOf\": \"2027-01-15\", \"source\": \"Admissions roster\"}. The calculator never reserves or decrements seats.",
+    "_note": "Stands on its own: one tuition discount per enrollment (not combined with pay-in-full or installment discounts). Availability and eligibility confirmed by NWIOI.",
+    "applicationUrl": "https://forms.wix.com/f/7167298250691576552",
+    "_applicationNote": "Existing NWIOI scholarship application form, shown as a secondary link. The main CTA goes to the admissions inquiry link (Admin → Links)."
   }
 }

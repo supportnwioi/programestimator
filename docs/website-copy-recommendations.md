@@ -46,11 +46,13 @@ Next to any combined estimate:
 > 99 CEUs of NWIOI coursework • Supervision for your credential • SAR included
 > Your credential calls for 150 education hours (90 Core Knowledge Areas + 60 credential-specific skills training). Core includes 99 CEUs. Your prior graduate coursework and continuing education may cover the rest. If not, you can take additional courses with NWIOI or another institute.
 
-| Credential | Standard NWIOI tuition | Pay in full · Save 7% | Supervision included |
-|---|---:|---:|---|
-| Sex Therapist | $8,200 | $7,626.00 | 26 individual + 24 group hours, at least 18 months |
-| Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours, at least 12 months |
-| Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours, at least 9 months |
+| Credential | Core tuition | Pay in full (5% off) | 12 monthly (2% off) | 18 monthly (standard) | Equity Scholarship (5% off, up to 24 monthly) |
+|---|---:|---:|---:|---:|---:|
+| Sex Therapist | $8,200 | $7,790.00 | $8,036.00 ($669.67/mo) | $8,200.00 ($455.56/mo) | $7,790.00 ($324.58/mo) |
+| Sexuality Counselor | $7,450 | $7,077.50 | $7,301.00 ($608.42/mo) | $7,450.00 ($413.89/mo) | $7,077.50 ($294.90/mo) |
+| Sexuality Educator | $6,950 | $6,602.50 | $6,811.00 ($567.58/mo) | $6,950.00 ($386.11/mo) | $6,602.50 ($275.10/mo) |
+
+Monthly amounts are rounded to the cent, and the final payment absorbs the rounding so the payments add up to the exact total. There are no installment fees, and the payment options apply to Core tuition only.
 
 > SAR is included in every Core price. If you've already completed a SAR, your tuition stays the same.
 > **Explore scholarship and equity rates**
@@ -76,20 +78,20 @@ Replace the three-column table with two columns.
 | Supervision | Included for your credential | NWIOI or outside, as needed |
 | SAR | Included | Add if needed |
 | Price | Fixed tuition by credential | One estimate for what you buy |
-| Pay in full · Save 7% | Yes | No |
+| Payment options | Pay in full (5% off), 12 monthly (2% off), 18 monthly | Pay as you buy |
 
 **Outdated figures to remove.**
 
 | Current site | Replace with |
 |---|---|
-| Tier I $10,950; Pay in full $10,183; 12- and 24-month plans | Core tuition by credential (table above); recalculate the plans or remove them until approved |
+| Tier I $10,950; Pay in full $10,183; 12- and 24-month plans | Core tuition and the payment options above |
 | Tier II $9,500; Pay in full $8,835; plans; "SAR Add-On $850+" | Remove (SAR is now included in Core) |
 | "50 supervision hours included" | "Supervision for your credential (25–50 hours)" |
 | "Tier III: Flexible" / "Modular Track" | Tier II · À La Carte |
 
 **Scholarship.** Replace "Contact us for scholarship and equity rates" with:
 
-> **FIELD Growth Scholarship.** NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need. Awards, and how they combine with pay in full, are subject to NWIOI review. **[View scholarship application]** **[Ask about equity rates]**
+> **Equity Scholarship.** NWIOI offers up to two Equity Scholarship seats each year across our Core Programs. Approved recipients receive 5% off tuition and can spread payments over 24 months with no added fees. Ask us about eligibility and availability. **[Ask about the Equity Scholarship]**
 
 Link the application to `https://forms.wix.com/f/7167298250691576552`.
 
@@ -112,7 +114,7 @@ Pick one, and set it under Admin → Links.
 
 ## To confirm before publishing
 
-1. **Prices.** Approve the three Core tuitions, pay in full, the $35/CEU planning rate, and the À La Carte rates. All are `draft` in `config/tracks.json`.
+1. **Prices.** The $35/CEU planning rate, À La Carte rates, payment options and Equity Scholarship terms are approved. The three Core tuitions are still `draft` in `config/tracks.json`, so the public sees “Confirm Core tuition with admissions” and no payment amounts until they're approved.
 2. **Curriculum mapping.** For each credential, how the 99 Core CEUs split between CKAs and skills training. Until it's set, the calculator uses the 51-hour gap and labels it a rough planning estimate.
 3. **Course library URL.** `library.url` is empty, so "Explore the NWIOI course library" shows "link coming soon".
 4. **Booking, enrollment, supervisors and sample-weekend links.** These are placeholders or empty.

@@ -87,14 +87,36 @@ const radioGroup = (name, legend, options, value) => `
     <div class="seg">${options.map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${value === k ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
   </fieldset>`;
 
-function scholarshipBlock() {
+const PAYMENT_NOTE = 'Tuition and payment amounts are estimates. NWIOI will confirm your final tuition and payment schedule with you.';
+
+// Core tuition and payment choices together. Prior training never changes these amounts.
+function paymentOptions() {
+  const core = result.tracks.core;
+  const opts = core.paymentOptions || [];
+  if (!opts.length) return '';
+  const row = (o) => `<li class="pay-opt" data-testid="pay-${o.key}">
+      <span class="pay-name"><strong>${esc(o.label)}</strong>${o.discountPercent ? ` <span class="pay-off">${o.discountPercent}% off</span>` : ' <span class="pay-off muted">standard tuition</span>'}</span>
+      <span class="pay-amt">${o.monthly ? `<strong data-testid="pay-${o.key}-monthly">${esc(o.monthlyDisplay)}</strong><span class="small">/month</span>` : `<strong data-testid="pay-${o.key}-total">${esc(o.totalDisplay)}</strong>`}</span>
+      <span class="pay-detail small">${o.monthly ? `<span data-testid="pay-${o.key}-total">${esc(o.totalDisplay)}</span> total${o.finalDisplay ? ` · final payment ${esc(o.finalDisplay)}` : ''}` : 'total, paid once'}</span>
+    </li>`;
+  return `<div class="payments" data-testid="payments">
+    <h4 class="pay-h">Payment options</h4>
+    <ul class="pay-list">${opts.map(row).join('')}</ul>
+    <p class="small muted" data-testid="payment-note">${esc(PAYMENT_NOTE)} No installment fees.${core.paymentDraft ? ' <span class="chip warn">Draft · preview only</span>' : ''}</p>
+    ${equityBlock()}
+  </div>`;
+}
+
+function equityBlock() {
   const s = result?.scholarship;
   if (!s) return '';
-  return `<details class="scholarship" data-testid="scholarship">
-    <summary>Explore scholarship and equity rates</summary>
-    <p class="small"><strong>${esc(s.title)}</strong><br>${esc(s.copy)}</p>
-    <p class="small muted">Scholarship awards, and whether they combine with pay-in-full savings, are subject to NWIOI review.</p>
-    <div class="row">${linkHtml(s.application, 'View scholarship application', 'btn', 'scholarship-apply')} ${linkHtml(s.equity, 'Ask about equity rates', 'small', 'equity')}</div>
+  const pl = s.plan;
+  return `<details id="equity" class="equity"${openState.equity ? ' open' : ''} data-testid="scholarship">
+    <summary>Equity Scholarship</summary>
+    <p class="small">${esc(s.copy)}</p>
+    ${pl ? `<p class="small" data-testid="equity-plan"><strong>${s.discountPercent}% off: <span data-testid="equity-total">${esc(pl.totalDisplay)}</span> total</strong>, or ${s.months} monthly payments of <span data-testid="equity-monthly">${esc(pl.monthlyDisplay)}</span>${pl.finalDisplay ? ` (final payment ${esc(pl.finalDisplay)})` : ''}. No added fees.</p>` : ''}
+    <p class="small muted">The scholarship rate stands on its own: one tuition discount per enrollment. Availability and eligibility are confirmed by NWIOI.${s.seats ? ` <span data-testid="equity-seats">${plural(s.seats.remaining, 'seat')} remaining${s.seats.year ? ` for ${s.seats.year}` : ''} (admissions record as of ${esc(s.seats.asOf)}).</span>` : ''}</p>
+    <div class="row">${linkHtml(s.inquiry, 'Ask about the Equity Scholarship', 'btn', 'equity')} ${linkHtml(s.application, 'Scholarship application form', 'small', 'scholarship-apply')}</div>
   </details>`;
 }
 
@@ -296,8 +318,7 @@ function optionsSection() {
   const rec = (k) => (result.recommended === k ? ' <span class="chip ok" data-testid="rec-chip">Recommended for you</span>' : '');
   const corePrice = known(p)
     ? `<span class="opt-label">Package tuition</span><strong class="row-amt" data-testid="rec-price">${esc(p.display)}</strong>
-       ${p.payInFull ? `<span class="small" data-testid="rec-pif">Pay in full: ${esc(p.payInFull.display)} (save ${p.payInFull.percent}%)</span>` : ''}
-       ${core.paymentPlans?.length ? `<span class="small">${core.paymentPlans.map((x) => `or ${esc(x.text)}`).join(' · ')}</span>` : ''}${draftChip(p.draft)}`
+       <span class="small muted">18-month standard tuition</span>${draftChip(p.draft)}`
     : `<span class="opt-label">Package tuition</span><strong class="row-amt confirm" data-testid="rec-price">${esc(p.confirmText)}</strong>`;
   const alaPrice = cw.state === 'known'
     ? `<span class="opt-label">Estimated coursework cost</span><strong class="row-amt" data-testid="ala-coursework-cost">${cw.cost ? esc(cw.cost.display) : 'Ask admissions'}</strong>
@@ -313,6 +334,7 @@ function optionsSection() {
         ${core.lead ? `<p class="small muted">${esc(core.lead)}</p>` : ''}
       </div>
       <div class="row-price">${corePrice}</div>
+      ${paymentOptions() || (result.scholarship ? `<div class="payments">${equityBlock()}</div>` : '')}
     </div>
     <div class="opt-row" data-track="alaCarte">
       <div class="row-main">
@@ -321,7 +343,6 @@ function optionsSection() {
       </div>
       <div class="row-price">${alaPrice}</div>
     </div>
-    ${scholarshipBlock()}
     <div class="row-links small">
       ${compareDetails()}
       <button type="button" class="link" data-mode="ala" data-testid="ala-action" aria-pressed="${state.mode === 'ala'}">Build an À La Carte estimate</button>
@@ -339,7 +360,7 @@ function compareDetails() {
     ['Supervision', esc(supervision.replace(/^Supervision: /, '')), 'NWIOI hours and group sessions as you need them, or an outside supervisor (paid separately)'],
     ['SAR', 'Included', 'Add if you need one'],
     ['Price', `Package tuition${known(core.price) ? `: ${esc(core.price.display)}` : ''}`, 'Based on what you choose'],
-    ['Pay in full', core.price.payInFull ? `Save ${core.price.payInFull.percent}%: ${esc(core.price.payInFull.display)}` : 'Ask admissions', 'Not available'],
+    ['Payment options', (core.paymentOptions || []).length ? core.paymentOptions.map((o) => `${esc(o.label)}${o.discountPercent ? ` (${o.discountPercent}% off)` : ''}`).join(', ') : 'Ask admissions', 'Pay as you buy'],
     ['Good fit if', 'You want a complete, guided path with supervision', 'You’ve completed much of your training or have your own supervisor'],
   ];
   return det('compare', '<span id="compare-h">Compare full details</span>', `
@@ -433,7 +454,7 @@ function renderBar() {
   const label = useAla ? (ala.fewerThanNeeded ? 'Your selected items' : 'Estimated cost with NWIOI') : 'Package tuition';
   const value = known(t.price) ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
   const parts = [];
-  if (!useAla && core.price.payInFull) parts.push(`Pay in full: ${core.price.payInFull.display}`);
+  if (!useAla && core.price.payInFull) parts.push(`Pay in full: ${core.price.payInFull.display} (${core.price.payInFull.percent}% off)`);
   if (!useAla && result.prior.covered > 0) parts.push(`${result.prior.covered} prior hours may count`);
   if (useAla && !known(ala.price)) parts.push('Your estimate updates as you choose');
   const sub = parts.join(' · ') || 'Planning estimate';
@@ -676,7 +697,7 @@ $main.addEventListener('change', (ev) => {
 });
 
 $main.addEventListener('toggle', (ev) => {
-  if (ev.target.matches?.('details.expand, details.compare')) openState[ev.target.id] = ev.target.open;
+  if (ev.target.matches?.('details.expand, details.compare, details.equity')) openState[ev.target.id] = ev.target.open;
 }, true);
 
 $main.addEventListener('click', (ev) => {

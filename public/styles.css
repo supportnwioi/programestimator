@@ -463,3 +463,21 @@ body.finder details#full-reqs { margin: 6px 0 0; }
 .tile strong { white-space: nowrap; }
 @media (max-width: 680px) { .tile strong { font-size: 1.3rem; } }
 .tile .chip { white-space: normal; display: inline-block; max-width: 100%; margin-top: 4px; font-size: .75rem; }
+
+/* ---------- Core tuition + payment options ---------- */
+.payments { grid-column: 1 / -1; margin-top: 6px; }
+.pay-h { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 4px; font-weight: 600; }
+.pay-list { list-style: none; padding: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.pay-opt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name amt" "detail detail"; gap: 0 12px; padding: 9px 12px; border-top: 1px solid var(--line); }
+.pay-opt:first-child { border-top: 0; }
+.pay-name { grid-area: name; }
+.pay-amt { grid-area: amt; text-align: right; white-space: nowrap; }
+.pay-amt strong { font-size: 1.1rem; }
+.pay-detail { grid-area: detail; color: var(--muted); }
+.pay-off { font-size: .8rem; font-weight: 600; color: var(--olive); margin-left: 4px; white-space: nowrap; }
+.pay-off.muted { color: var(--muted); font-weight: 400; }
+.payments > .small.muted { margin: 6px 0 4px; }
+body.finder details.equity { margin: 6px 0 0; border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 12px; background: var(--surface); }
+body.finder details.equity > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .95rem; min-height: 32px; display: flex; align-items: center; }
+body.finder details.equity[open] { padding-bottom: 10px; }
+@media (min-width: 681px) { .pay-opt { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.1fr); grid-template-areas: "name amt detail"; align-items: baseline; } .pay-detail { text-align: right; } }

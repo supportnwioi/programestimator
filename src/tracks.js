@@ -60,8 +60,12 @@ export function validateCatalog(catalog, rulesetsByPath) {
       if (!['draft', 'approved'].includes(st)) errors.push(`${cred}: status must be "draft" or "approved" (found "${st}")`);
     }
   }
-  const pif = catalog.payInFull;
-  if (pif && !(pif.rate >= 0 && pif.rate < 0.5)) errors.push('payInFull.rate must be between 0 and 0.5');
+  for (const o of catalog.paymentOptions?.options || []) {
+    if (!(o.discount >= 0 && o.discount < 0.5)) errors.push(`paymentOptions ${o.key}: discount must be between 0 and 0.5`);
+    if (!(Number.isInteger(o.months) && o.months >= 1)) errors.push(`paymentOptions ${o.key}: months must be a whole number of at least 1`);
+  }
+  const eq = catalog.equityScholarship;
+  if (eq && !(eq.discount >= 0 && eq.discount < 0.5 && Number.isInteger(eq.months) && eq.months >= 1)) errors.push('equityScholarship: discount must be between 0 and 0.5 and months a whole number');
   return errors;
 }
 
@@ -78,6 +82,18 @@ function parseHours(v, max) {
 const answered = (a) => a.state !== 'unanswered';
 const qty = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Math.round(Number(v)));
 const dollars = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) || Number(v) < 0 ? null : Math.round(Number(v) * 100) / 100);
+
+/**
+ * A payment plan in whole cents: total = tuition × (1 − discount), rounded to the cent;
+ * monthly = total ÷ months rounded to the cent; the final payment absorbs the rounding so
+ * the payments add up to the exact total. No fees.
+ */
+export function paymentPlan(tuition, discount, months) {
+  const totalCents = Math.round(tuition * 100 * (1 - discount));
+  const monthlyCents = Math.round(totalCents / months);
+  const finalCents = totalCents - monthlyCents * (months - 1);
+  return { total: totalCents / 100, monthly: monthlyCents / 100, final: finalCents / 100, months, discount };
+}
 
 function planText(plans, preview) {
   return (plans || []).filter((p) => visible(p.status, preview) && p.monthly > 0 && p.months > 0 && p.total > 0)
@@ -176,7 +192,8 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const where = ['nwioi', 'outside', 'help'].includes(input.supervisionWhere) ? input.supervisionWhere : null;
   const booking = usableLink(links.booking, preview);
   const library = usableLink(catalog.library?.url, preview);
-  const pifCfg = catalog.payInFull || {};
+  const payCfg = catalog.paymentOptions || {};
+  const payVisible = visible(payCfg.status, preview);
   const planRate = catalog.planningRate || {};
   const planRateVisible = planRate.perCeu > 0 && visible(planRate.status, preview);
 
@@ -186,15 +203,24 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   let corePrice = { amount: null, confirmText: 'Confirm Core tuition with admissions' };
   if (cVisible) {
     corePrice = { amount: c.tuition, display: money(c.tuition), label: 'Standard NWIOI tuition', fixed: true, draft: c.status !== 'approved' };
-    if (pifCfg.rate > 0 && visible(pifCfg.status, preview) && (pifCfg.tiers || []).includes('core')) {
-      const due = cents(c.tuition * (1 - pifCfg.rate));
-      corePrice.payInFull = { amount: due, display: money2(due), savings: money2(cents(c.tuition - due)), percent: Math.round(pifCfg.rate * 100), draft: pifCfg.status !== 'approved' };
+    const full = payVisible && (payCfg.options || []).find((o) => o.months === 1 && o.discount > 0);
+    if (full) {
+      const due = paymentPlan(c.tuition, full.discount, 1).total;
+      corePrice.payInFull = { amount: due, display: money2(due), savings: money2(cents(c.tuition - due)), percent: Math.round(full.discount * 100), draft: payCfg.status !== 'approved' };
     }
   }
   const enrollLink = cVisible ? usableLink(c.links?.enroll, preview) : null;
   const core = {
     key: 'core', name: names.core, price: corePrice,
-    paymentPlans: cVisible ? planText(c.paymentPlans, preview) : [],
+    paymentPlans: [],
+    // Standard payment options for Core tuition. Prior training never changes these.
+    paymentOptions: cVisible && payVisible ? (payCfg.options || []).map((o) => {
+      const pl = paymentPlan(c.tuition, o.discount, o.months);
+      return { key: o.key, label: o.label, months: o.months, discountPercent: Math.round(o.discount * 100),
+        total: pl.total, totalDisplay: money2(pl.total), monthly: o.months > 1 ? pl.monthly : null, monthlyDisplay: o.months > 1 ? money2(pl.monthly) : null,
+        final: o.months > 1 ? pl.final : null, finalDisplay: o.months > 1 && pl.final !== pl.monthly ? money2(pl.final) : null };
+    }) : [],
+    paymentDraft: payCfg.status !== 'approved',
     lead: c.lead,
     included: [
       `${c.ceus} CEUs of NWIOI coursework`,
@@ -360,10 +386,20 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   if (sar === 'yes') notes.push('You said you’ve completed a SAR. SAR is included in Core either way, and Core tuition stays the same.');
   if (where === 'help' && ready) notes.push('Not sure where to do your supervision? We’ve assumed NWIOI for now. Admissions can help you decide.');
 
-  const sch = catalog.scholarship;
-  const scholarship = sch && visible(sch.status, preview)
-    ? { title: sch.title, copy: sch.copy, application: usableLink(sch.applicationUrl, preview), equity: booking }
-    : null;
+  // Equity Scholarship: its own rate (one tuition discount per enrollment). Seats are shown
+  // only from a verified admissions record; nothing here reserves a seat.
+  const eq = catalog.equityScholarship;
+  let scholarship = null;
+  if (eq && visible(eq.status, preview)) {
+    const pl = cVisible ? paymentPlan(c.tuition, eq.discount, eq.months) : null;
+    const vs = eq.verifiedSeats;
+    scholarship = {
+      title: eq.title, copy: eq.copy, discountPercent: Math.round(eq.discount * 100), months: eq.months, seatsPerYear: eq.seatsPerYear,
+      plan: pl ? { total: pl.total, totalDisplay: money2(pl.total), monthly: pl.monthly, monthlyDisplay: money2(pl.monthly), final: pl.final, finalDisplay: pl.final !== pl.monthly ? money2(pl.final) : null } : null,
+      seats: vs && Number.isInteger(vs.remaining) && vs.remaining >= 0 && vs.asOf && vs.source ? { remaining: vs.remaining, year: vs.year ?? null, asOf: vs.asOf } : null,
+      inquiry: booking, application: usableLink(eq.applicationUrl, preview), equity: booking,
+    };
+  }
 
   return {
     credential: cred, pathName: ruleset.pathName, rulesetVersion: ruleset.version, benchmarks: b,

@@ -25,7 +25,7 @@ const PORT2 = PORT + 1;
 const BASE2 = `http://localhost:${PORT2}`;
 fs.writeFileSync(path.join(DATA, 'settings.json'), JSON.stringify(LINKS));
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'config/tracks.json'), 'utf8'));
-Object.assign(catalog.credentials.sexuality_educator.core, { status: 'approved', links: { enroll: ENROLL_EDU, supervisors: '', sampleWeekend: '' }, paymentPlans: [{ label: '12 months', monthly: 600, months: 12, total: 7200, status: 'approved' }] });
+Object.assign(catalog.credentials.sexuality_educator.core, { status: 'approved', links: { enroll: ENROLL_EDU, supervisors: '', sampleWeekend: '' } });
 fs.writeFileSync(path.join(DATA, 'tracks.json'), JSON.stringify(catalog));
 
 let server, server2, browser;
@@ -459,12 +459,12 @@ test('Track finder: I’m not sure path — review offered directly, nothing gue
 
 test('Track finder (preview): two compact options below the result; Core tuition fixed; comparison and builder behind links', async () => {
   const page = await newPage(BASE2);
-  const expect = { sex_therapist: ['$8,200', '$7,626.00'], sexuality_counselor: ['$7,450', '$6,928.50'], sexuality_educator: ['$6,950', '$6,463.50'] };
+  const expect = { sex_therapist: ['$8,200', '$7,790.00'], sexuality_counselor: ['$7,450', '$7,077.50'], sexuality_educator: ['$6,950', '$6,602.50'] };
   for (const [cred, [std, pif]] of Object.entries(expect)) {
     await choose(page, cred);
     await settled(page);
     assert.equal(await text(page, '[data-testid="rec-price"]'), std, cred);
-    assert.match(await text(page, '[data-testid="rec-pif"]'), new RegExp(`Pay in full: \\${pif} \\(save 7%\\)`));
+    assert.equal(await text(page, '[data-testid="pay-full-total"]'), pif);
     await college(page, 'yes', 4);
     await settled(page);
     assert.equal(await text(page, '[data-testid="rec-price"]'), std, 'Core tuition stays with prior coursework');
@@ -479,7 +479,7 @@ test('Track finder (preview): two compact options below the result; Core tuition
   assert.equal(await page.locator('#ala-flow').count(), 0);
   assert.equal(await text(page, '[data-testid="ala-action"]'), 'Build an À La Carte estimate');
   await page.click('[data-testid="scholarship"] summary');
-  assert.match(await text(page, '[data-testid="scholarship"]'), /FIELD Growth Scholarship/);
+  assert.match(await text(page, '[data-testid="scholarship"]'), /NWIOI offers up to two Equity Scholarship seats each year across our Core Programs\./);
   assert.equal(await page.getAttribute('[data-testid="scholarship-apply"]', 'href'), 'https://forms.wix.com/f/7167298250691576552');
   await page.close();
 });
@@ -584,7 +584,7 @@ test('Track finder (public): only approved offers show tuition; drafts and place
   await choose(page, 'sexuality_educator');
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$6,950');
-  assert.equal(await page.locator('[data-testid="rec-pif"]').count(), 0, 'pay-in-full is still draft');
+  assert.deepEqual(await page.$$eval('[data-testid$="-total"]', (els) => els.filter((e) => e.closest('[data-testid="payments"]')).map((e) => e.textContent)), ['$6,602.50', '$6,811.00', '$6,950.00', '$6,602.50'], 'approved Educator tuition: payment options and Equity Scholarship show publicly');
   await page.click('#compare summary');
   assert.equal(await page.getAttribute('[data-testid="enroll"]', 'href'), ENROLL_EDU);
   await page.close();
@@ -691,4 +691,58 @@ test('Track finder (public): approved $35 rate shows the dollar savings publicly
   assert.doesNotMatch(await text(page, '[data-testid="savings-block"]'), /Draft|preview/i);
   assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
   await page.close();
+});
+
+test('Track finder (preview): Core payment options and Equity Scholarship — totals, monthly amounts, track switching, mobile', async () => {
+  const page = await newPage(BASE2);
+  const want = {
+    sex_therapist: { full: '$7,790.00', m12: ['$669.67', '$8,036.00', '$669.63'], m18: ['$455.56', '$8,200.00', '$455.48'], eq: ['$7,790.00', '$324.58'] },
+    sexuality_counselor: { full: '$7,077.50', m12: ['$608.42', '$7,301.00', '$608.38'], m18: ['$413.89', '$7,450.00', '$413.87'], eq: ['$7,077.50', '$294.90'] },
+    sexuality_educator: { full: '$6,602.50', m12: ['$567.58', '$6,811.00', '$567.62'], m18: ['$386.11', '$6,950.00', '$386.13'], eq: ['$6,602.50', '$275.10'] },
+  };
+  for (const [cred, w] of Object.entries(want)) {
+    await choose(page, cred);
+    await settled(page);
+    assert.equal(await text(page, '[data-testid="pay-full-total"]'), w.full, `${cred} pay in full`);
+    assert.match(squash(await text(page, '[data-testid="pay-full"]')), /Pay in full 5% off/);
+    for (const k of ['m12', 'm18']) {
+      const [mo, total, fin] = w[k];
+      assert.equal(await text(page, `[data-testid="pay-${k}-monthly"]`), mo, `${cred} ${k} monthly`);
+      assert.equal(await text(page, `[data-testid="pay-${k}-total"]`), total, `${cred} ${k} total`);
+      assert.match(squash(await text(page, `[data-testid="pay-${k}"]`)), new RegExp(`final payment \\${fin}`));
+    }
+    assert.match(squash(await text(page, '[data-testid="pay-m12"]')), /12 monthly payments 2% off/);
+    assert.match(squash(await text(page, '[data-testid="pay-m18"]')), /18 monthly payments standard tuition/);
+    if (!(await page.evaluate(() => document.getElementById('equity')?.open))) await page.click('#equity summary');
+    assert.equal(await text(page, '[data-testid="equity-total"]'), w.eq[0], `${cred} equity`);
+    assert.equal(await text(page, '[data-testid="equity-monthly"]'), w.eq[1]);
+  }
+  assert.equal(squash(await text(page, '[data-testid="payment-note"]')).startsWith('Tuition and payment amounts are estimates. NWIOI will confirm your final tuition and payment schedule with you.'), true);
+  assert.equal(await text(page, '[data-testid="equity"]'), 'Ask about the Equity Scholarship');
+  assert.equal(await page.locator('[data-testid="equity-seats"]').count(), 0, 'no seat count without a verified admissions record');
+  assert.match(await text(page, '[data-testid="scholarship"]'), /one tuition discount per enrollment/);
+  // Payment options sit with Core tuition, and the Equity Scholarship sits under them.
+  const pos = await page.evaluate(() => ({ core: document.querySelector('[data-track="core"]').contains(document.querySelector('[data-testid="payments"]')), eq: document.querySelector('[data-testid="pay-m18"]').getBoundingClientRect().bottom <= document.getElementById('equity').getBoundingClientRect().top }));
+  assert.deepEqual(pos, { core: true, eq: true });
+  // Prior education never changes tuition or payment amounts.
+  await college(page, 'yes', 9);
+  await ce(page, 'yes', { aasect: 20 });
+  await categories(page, 60, 40);
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="pay-m12-total"]'), '$6,811.00');
+  assert.equal(await text(page, '[data-testid="rec-price"]'), '$6,950');
+  await page.close();
+  // Mobile: reads cleanly, nothing overflows.
+  const m = await browser.newPage({ ...devices['iPhone 13'] });
+  await m.goto(BASE2);
+  await choose(m, 'sexuality_counselor');
+  await settled(m);
+  await m.locator('[data-testid="payments"]').scrollIntoViewIfNeeded();
+  const boxes = await m.$$eval('.pay-opt', (els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right]; }));
+  assert.equal(boxes.length, 3);
+  for (const [l, r] of boxes) assert.ok(l >= 0 && r <= 390, `payment row inside the screen ${l}-${r}`);
+  assert.equal(await m.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0);
+  assert.ok(await m.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.pay-amt strong')).fontSize)) >= 16);
+  await shot(m, '15-payments-mobile');
+  await m.close();
 });

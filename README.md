@@ -60,11 +60,29 @@ Headline **“Build on the training you’ve already done.”** followed by one 
 - **Core Program · Tier I:** 99 CEUs of NWIOI coursework, supervision for the credential, and SAR at a fixed tuition. SAR is always included, and tuition stays the same if the student has already completed one.
 - **À La Carte · Tier II:** individual courses, NWIOI supervision and SAR, bought as needed.
 
-| Credential | Core tuition | Pay in full (7%) | Supervision in Core |
-|---|---:|---:|---|
-| Sex Therapist | $8,200 | $7,626.00 | 26 individual + 24 group hours |
-| Sexuality Counselor | $7,450 | $6,928.50 | 15 individual + 15 group hours |
-| Sexuality Educator | $6,950 | $6,463.50 | 5 individual + 20 group hours |
+| Credential | Core tuition | Supervision in Core |
+|---|---:|---|
+| Sex Therapist | $8,200 | 26 individual + 24 group hours |
+| Sexuality Counselor | $7,450 | 15 individual + 15 group hours |
+| Sexuality Educator | $6,950 | 5 individual + 20 group hours |
+
+**Core payment options** (`paymentOptions` in `config/tracks.json`, shown with Core tuition):
+
+| Credential | Core tuition | Pay in full (5% off) | 12 monthly (2% off) | 18 monthly (standard) | Equity Scholarship (5% off, up to 24 monthly) |
+|---|---:|---:|---:|---:|---:|
+| Sex Therapist | $8,200 | $7,790.00 | $8,036.00 ($669.67/mo) | $8,200.00 ($455.56/mo) | $7,790.00 ($324.58/mo) |
+| Sexuality Counselor | $7,450 | $7,077.50 | $7,301.00 ($608.42/mo) | $7,450.00 ($413.89/mo) | $7,077.50 ($294.90/mo) |
+| Sexuality Educator | $6,950 | $6,602.50 | $6,811.00 ($567.58/mo) | $6,950.00 ($386.11/mo) | $6,602.50 ($275.10/mo) |
+
+Monthly amounts are rounded to the cent, and the final payment absorbs the rounding so the payments add up to the exact total. There are no installment fees, and the payment options apply to Core tuition only.
+
+**Equity Scholarship** (`equityScholarship`) sits in a collapsed section under the payment options:
+- Up to two seats per calendar year across all three Core tracks.
+- Recipients get 5% off and can spread the total over 24 months with no fees.
+- The scholarship can't be combined with another tuition discount: one discount per enrollment.
+- The CTA is “Ask about the Equity Scholarship”, which goes to the admissions inquiry link. The existing scholarship application form is a secondary link.
+- A remaining-seat count appears only if `verifiedSeats` is filled in from an admissions record, with `remaining`, `asOf` and `source`. The calculator never reserves or decrements seats.
+- “Tuition and payment amounts are estimates. NWIOI will confirm your final tuition and payment schedule with you.” sits beside the options.
 
 **Page order:**
 1. Headline and credential picker.
@@ -129,7 +147,7 @@ Example: 25 prior CEUs → 26 remaining → $910 → combined $9,110 / $8,360 / 
 - Primary: **Review my prior training** (admissions booking).
 - Secondary: **Explore the NWIOI course library**, with “Additional NWIOI courses depend on current availability.”
 - **Book a free admissions call** is in the pinned bar.
-- **Explore scholarship and equity rates** sits next to tuition (FIELD Growth Scholarship form; awards and their interaction with pay in full are subject to NWIOI review).
+- **Equity Scholarship** sits under the Core payment options.
 - Once the enrollment link is approved, “Ready to enroll?” also appears.
 
 **Configuration.** Everything is in `config/tracks.json`, editable under Admin → **Tracks & tuition** and validated against the AASECT rulesets when saved (Core = 99 CEUs, includes SAR, supervision adds up to the credential target, mapping adds to 99). Only `"approved"` items show prices and links publicly. Drafts are visible to signed-in admins, or to everyone with `NWIOI_PREVIEW=1`, always labeled.
