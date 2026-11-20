@@ -99,14 +99,14 @@ test('Core is not suggested on unknown education, outside supervision, or for cr
   }
 });
 
-test('Modular: each education category on its own; exact math; no rounding', () => {
+test('Modular: each education category on its own; one exact total; quantities only', () => {
   const r = est('sex_therapist', full({ core: 80, skills: 30, sar: 'yes', supervisionWhere: 'outside' }));
   const m = r.tracks.modular;
   assert.deepEqual([m.suggestion.coreCeus, m.suggestion.skillsCeus], [10, 30]);
   assert.equal(m.price.amount, 1400, '10 core + 30 skills = 40 CEUs × $35');
   assert.equal(m.price.label, 'Estimated cost with NWIOI');
-  assert.deepEqual(m.lines.map((l) => [l.label, l.math, l.amount]), [['10 core knowledge CEUs', '10 × $35', '$350'], ['30 Sex Therapy Skills Training CEUs', '30 × $35', '$1,050']]);
-  assert.equal(m.educationSubtotal, '$1,400');
+  assert.deepEqual(m.items, ['10 Core Knowledge CEUs', '30 Sex Therapy Skills Training CEUs']);
+  assert.equal(m.basedOn, 'Based on the courses you’d buy individually from NWIOI through Tier III · Modular.');
   // Extra core hours can’t close the skills gap (core capped at 90, skills at 60).
   const over = est('sex_therapist', full({ core: 90, skills: 0, sar: 'yes', supervisionWhere: 'outside', modular: { coreCeus: 200 } })).tracks.modular;
   assert.deepEqual([over.selection.coreCeus, over.selection.skillsCeus], [90, 60]);
@@ -143,8 +143,9 @@ test('unknown categories stay unresolved: the known portion is shown with what n
 test('outside supervision is left out of the Modular total', () => {
   const r = est('sex_therapist', full({ core: 30, skills: 40, sar: 'no', supervisionWhere: 'outside', modular: { individualHours: 10, groupSessions: 4 } }));
   assert.equal(r.tracks.modular.price.amount, 3450);
-  assert.ok(r.tracks.modular.notes.some((n) => /pay your supervisor separately/.test(n)));
-  assert.ok(!r.tracks.modular.lines.some((l) => /supervision/.test(l.label)));
+  assert.ok(r.tracks.modular.notes.includes('You’ll pay your outside supervisor separately.'));
+  assert.ok(!r.tracks.modular.items.some((l) => /supervision/.test(l)));
+  assert.equal(r.tracks.modular.basedOn, 'Based on the courses and SAR you’d buy individually from NWIOI through Tier III · Modular.', 'SAR mentioned only when included');
 });
 
 test('NWIOI supervision bought separately: individual hours and group sessions at their own rates', () => {
@@ -152,16 +153,23 @@ test('NWIOI supervision bought separately: individual hours and group sessions a
   const m = r.tracks.modular;
   assert.deepEqual([m.selection.coreCeus, m.selection.skillsCeus, m.selection.individualHours, m.selection.groupSessions], [10, 20, 10, 4]);
   assert.equal(m.price.amount, 30 * 35 + 10 * 195 + 4 * 200);
-  assert.ok(m.lines.some((l) => l.label === '4 group supervision sessions (3 hours each)' && l.math === '4 × $200'));
-  assert.ok(m.lines.some((l) => l.label === '10 individual supervision hours' && l.math === '10 × $195'));
+  assert.ok(m.items.includes('4 group supervision sessions, 3 hours each'));
+  assert.ok(m.items.includes('10 hours of individual supervision'));
 });
 
-test('rates can be hidden by config: units only, rounded, nothing sent', () => {
-  const cat = structuredClone(DEFAULT_CATALOG);
-  cat.display.showModularRates = false;
-  const m = est('sex_therapist', full({ core: 30, skills: 39, sar: 'yes', supervisionWhere: 'outside' }), { preview: true }, cat).tracks.modular;
-  assert.equal(m.price.amount, 2850, '81 CEUs rounded to the nearest $50');
-  assert.ok(!JSON.stringify(m.lines).includes('$'));
+test('screenshot scenario: $10,695 with quantities only; no unit prices or line amounts sent', () => {
+  const r = est('sex_therapist', full({ core: 35, skills: 0, supervision: 0, sar: 'yes', supervisionWhere: 'nwioi' }));
+  const m = r.tracks.modular;
+  assert.equal(m.price.display, '$10,695');
+  assert.deepEqual(m.items, ['55 Core Knowledge CEUs', '60 Sex Therapy Skills Training CEUs', '26 hours of individual supervision', '8 group supervision sessions, 3 hours each']);
+  assert.equal(m.basedOn, 'Based on the courses and supervision you’d buy individually from NWIOI through Tier III · Modular.');
+  const json = JSON.stringify(m);
+  assert.deepEqual(json.match(/\$[0-9,.]+/g), ['$10,695'], 'the total is the only dollar figure in the Modular payload');
+  for (const leak of ['"math"', '"amount":"$', 'educationSubtotal', '× $']) assert.ok(!json.includes(leak), `leaks ${leak}`);
+  // With the SAR added, the sentence mentions it.
+  const withSar = est('sex_therapist', full({ core: 35, skills: 0, supervision: 0, sar: 'no', supervisionWhere: 'nwioi' })).tracks.modular;
+  assert.equal(withSar.price.display, '$11,345');
+  assert.equal(withSar.basedOn, 'Based on the courses, supervision and SAR you’d buy individually from NWIOI through Tier III · Modular.');
 });
 
 test('drafts and placeholder links are hidden publicly; approved offers, plans and scholarship show', () => {

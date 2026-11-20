@@ -225,3 +225,13 @@ table.math td.math-col { white-space: nowrap; }
 .compare-live a { flex-basis: 100%; }
 @keyframes compare-flash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .compare-live strong.flash { animation: none; } }
+
+/* Modular: one total, expandable quantities list */
+details.expand { margin: 8px 0; }
+details.expand > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: .92rem; padding: 4px 0; }
+.item-list { list-style: none; padding: 0; margin: 6px 0 4px; }
+.item-list li { padding: 7px 0 7px 22px; border-top: 1px solid var(--line); position: relative; font-size: .95rem; }
+.item-list li:first-child { border-top: 0; }
+.item-list li::before { content: "✓"; position: absolute; left: 2px; color: var(--accent); font-weight: 700; }
+.compare-live .based-on { flex-basis: 100%; margin: 2px 0 0; }
+.compare-live details.expand { flex-basis: 100%; margin: 4px 0 0; }

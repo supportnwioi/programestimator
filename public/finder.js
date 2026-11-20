@@ -111,7 +111,7 @@ function priceBlock(t, { big = false } = {}) {
   const pif = p.payInFull
     ? `<p class="pif" data-testid="${big ? 'rec-pif' : `pif-${t.key}`}"><strong>Pay in full · Save ${p.payInFull.percent}%:</strong> ${esc(p.payInFull.display)} <span class="small muted">(you save ${esc(p.payInFull.savings)})</span>${p.payInFull.draft ? ' <span class="chip warn">draft</span>' : ''}</p>`
     : '';
-  return `<p class="price-label-sm small muted">${esc(p.label)}${p.rounded ? ' · rounded to the nearest $50' : ''}</p>
+  return `<p class="price-label-sm small muted">${esc(p.label)}</p>
     <p class="${big ? 'range' : 'price-sm'}" data-testid="${id}">${esc(p.display)}${partial}</p>
     ${pif}
     ${t.paymentPlans?.length ? `<ul class="small plans">${t.paymentPlans.map((x) => `<li>or ${esc(x.text)}${x.draft ? ' <span class="chip warn">draft</span>' : ''}</li>`).join('')}</ul>` : ''}
@@ -138,7 +138,10 @@ function ctaHtml(t, primary) {
   return `<div class="cta">${html}</div>`;
 }
 
-const mathRow = (t) => (l) => `<tr><td>${esc(l.label)}</td>${t.showRates ? `<td class="muted math-col">${l.math ? esc(l.math) : ''}</td><td class="amt">${esc(l.amount)}</td>` : ''}</tr>`;
+// Expandable sections keep their open/closed state across live updates.
+const openState = {};
+const det = (id, summary, body, testid = '') => `<details id="${id}" class="expand"${openState[id] ? ' open' : ''}${testid ? ` data-testid="${testid}"` : ''}><summary>${summary}</summary>${body}</details>`;
+const itemList = (items, testid) => `<ul class="item-list" data-testid="${testid}">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
 
 function modularControls(t) {
   const s = t.selection, sug = t.suggestion, u = t.units;
@@ -146,24 +149,20 @@ function modularControls(t) {
       <input type="number" id="${id}" data-mod="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
       <span class="small muted">${hint}</span></div>`;
   const sugText = (v, unsureMsg) => (v !== null ? `Suggested from your answers: ${v} remaining` : unsureMsg);
-  return `
-  <div class="modular-controls" aria-label="What you plan to buy from NWIOI">
-    <p class="small"><strong>What you plan to buy from NWIOI</strong></p>
+  const adjust = `
     <div class="grid2">
-      ${num('mod-core', 'coreCeus', 'Core knowledge CEUs', result.benchmarks.core, sugText(sug.coreCeus, 'Needs review. Choose a number or ask admissions.'))}
+      ${num('mod-core', 'coreCeus', 'Core Knowledge CEUs', result.benchmarks.core, sugText(sug.coreCeus, 'Needs review. Choose a number or ask admissions.'))}
       ${num('mod-skills', 'skillsCeus', `${u.trainingLabel} CEUs`, result.benchmarks.skills, sugText(sug.skillsCeus, 'Needs review. Choose a number or ask admissions.'))}
     </div>
-    ${t.sarOffer ? `<label class="small" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)}</label>` : ''}
     ${t.outsideSupervision ? '' : `<div class="grid2">
-      ${num('mod-ind', 'individualHours', 'Individual supervision hours', null, 'One-to-one with an NWIOI supervisor')}
+      ${num('mod-ind', 'individualHours', 'Hours of individual supervision', null, 'One-to-one with an NWIOI supervisor')}
       ${num('mod-grp', 'groupSessions', 'Group supervision sessions', null, `${u.groupSessionHours} hours each`)}
-    </div>`}
-    ${t.lines.length ? `<table class="math small" data-testid="modular-math"><tbody>
-      ${t.lines.filter((l) => l.group === 'education').map(mathRow(t)).join('')}
-      ${t.educationSubtotal ? `<tr class="sub"><td>Education subtotal</td><td></td><td class="amt" data-testid="education-subtotal">${esc(t.educationSubtotal)}</td></tr>` : ''}
-      ${t.lines.filter((l) => l.group !== 'education').map(mathRow(t)).join('')}
-      ${t.price.amount !== null && t.price.amount !== undefined ? `<tr class="total"><td>Estimated cost with NWIOI</td>${t.showRates ? '<td></td>' : ''}<td class="amt">${esc(t.price.display)}${t.price.complete === false ? ' so far' : ''}</td></tr>` : ''}
-    </tbody></table>` : ''}
+    </div>`}`;
+  return `
+  <div class="modular-controls">
+    ${t.sarOffer ? `<label class="small sar-offer" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)}</label>` : ''}
+    ${t.items.length ? det('mod-included', 'What’s included', itemList(t.items, 'modular-items'), 'modular-included') : ''}
+    ${det('mod-adjust', 'Change what you’d buy', adjust, 'modular-adjust')}
   </div>`;
 }
 
@@ -194,18 +193,24 @@ function trackCard(t, recommendedKey, controlsShownAbove) {
 
 // Package prices are fixed, so show the number that does move with the answers:
 // what buying only what's still needed (Modular) would cost.
+// Package prices are fixed, so show the number that does move with the answers:
+// what the same training would cost bought separately through Modular.
 function modularComparison(t) {
   if (!t.price.fixed) return '';
   const m = result.tracks.modular;
-  const fixedNote = '<p class="small muted" data-testid="fixed-note">This package price is fixed: prior training doesn’t change it. Your answers change which track fits and what buying only what you need would cost.</p>';
+  const note = t.key === 'core'
+    ? 'Core has a fixed tuition. If you’ve already completed most of your training, Modular may be a better fit.'
+    : 'Comprehensive has a fixed tuition. If you’ve already completed some training, Core or Modular may be a better fit.';
+  const fixedNote = `<p class="small muted" data-testid="fixed-note">${note}</p>`;
   if (m.price.amount === null || m.price.amount === undefined) {
-    return `${fixedNote}<div class="compare-live" data-testid="modular-live"><span class="small">Buying only what you still need (${esc(m.name)})</span><strong class="small">${esc(m.price.confirmText || 'Answer the hours questions to see this estimate')}</strong></div>`;
+    return `${fixedNote}<div class="compare-live" data-testid="modular-live"><span class="small">Estimated cost if purchased separately</span><strong class="small">${esc(m.price.confirmText || 'Answer the hours questions to see this estimate')}</strong></div>`;
   }
   const value = m.price.complete === false ? `${m.price.display} so far` : m.price.display;
   return `${fixedNote}<div class="compare-live" data-testid="modular-live">
-      <span class="small">Buying only what you still need (${esc(m.name)})</span>
+      <span class="small">Estimated cost if purchased separately</span>
       <strong data-testid="modular-live-price">${esc(value)}</strong>
-      <a href="#compare" class="small" data-open-compare>See how this is calculated</a>
+      ${m.basedOn ? `<p class="small muted based-on" data-testid="based-on">${esc(m.basedOn)}</p>` : ''}
+      ${m.items.length ? det('sep-included', 'See what’s included', itemList(m.items, 'separate-items'), 'separate-included') : ''}
     </div>`;
 }
 
@@ -267,7 +272,7 @@ function renderBar() {
     value = known ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
     valueClass = known ? '' : 'confirm-value';
     const m = result.tracks.modular;
-    const modularAlt = t.price.fixed && m.price.amount !== null && m.price.amount !== undefined && m.price.complete !== false ? ` · Only what you need: ${m.price.display}` : '';
+    const modularAlt = t.price.fixed && m.price.amount !== null && m.price.amount !== undefined && m.price.complete !== false ? ` · If purchased separately: ${m.price.display}` : '';
     sub = known && t.price.payInFull ? `Pay in full: ${t.price.payInFull.display}${modularAlt}` : known ? `Planning estimate${modularAlt}` : 'We’ll confirm your tuition';
     draft = Boolean(t.price.draft);
   } else if (state.path) sub = 'Updating…';
@@ -429,6 +434,8 @@ $main.addEventListener('change', (ev) => {
   else if (t.dataset.mod === 'sar') { state.modular.sar = t.checked; requestEstimate(true); }
   else if ('coreSar' in t.dataset) { state.coreSar = t.checked; requestEstimate(true); }
 });
+
+$main.addEventListener('toggle', (ev) => { if (ev.target.matches?.('details.expand')) openState[ev.target.id] = ev.target.open; }, true);
 
 $main.addEventListener('click', (ev) => {
   const open = ev.target.closest('[data-open-compare]');

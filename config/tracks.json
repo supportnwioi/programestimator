@@ -234,10 +234,6 @@
     "appliesToAddOns": false,
     "_note": "Pay in full: package tuition x (1 - rate), rounded to the cent. Add-ons (e.g. Core SAR) stay at full price. Modular is excluded."
   },
-  "display": {
-    "showModularRates": true,
-    "_note": "true: Modular shows the exact math (e.g. 40 CEUs x $35 = $1,400). false: units only, one total rounded to the nearest $50, and no per-unit rates sent to the browser."
-  },
   "scholarship": {
     "title": "FIELD Growth Scholarship",
     "copy": "NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need.",

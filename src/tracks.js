@@ -13,7 +13,6 @@ export const DEFAULT_CATALOG = JSON.parse(fs.readFileSync(path.join(ROOT, 'confi
 const money = (n) => '$' + Math.round(n).toLocaleString('en-US');
 const money2 = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const cents = (n) => Math.round(n * 100) / 100;
-const ROUND_WHEN_RATES_HIDDEN = 50;
 const req = (ruleset, k) => ruleset.requirements.find((r) => r.key === k);
 
 export function benchmarks(ruleset) {
@@ -108,7 +107,6 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const sarDefault = sar === 'no';
   const pifCfg = catalog.payInFull || {};
   const pifVisible = pifCfg.rate > 0 && visible(pifCfg.status, preview);
-  const showRates = catalog.display?.showModularRates !== false;
 
   // Fixed package price: standard tuition plus optional add-ons; pay-in-full on the package only.
   function packagePrice(tierKey, tuition, addOns, status, confirmText) {
@@ -185,26 +183,29 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   if (sel.skillsCeus !== null) sel.skillsCeus = Math.min(sel.skillsCeus, b.skills);
   const lines = [];
   const missing = [];
-  const line = (label, n, unitRate, unitLabel) => ({ label, math: `${n} × ${money(unitRate)}${unitLabel ? ` ${unitLabel}` : ''}`, amount: n * unitRate });
-  for (const [key, label, n] of [['coreCeus', 'core knowledge CEUs', sel.coreCeus], ['skillsCeus', `${b.trainingLabel} CEUs`, sel.skillsCeus]]) {
+  // Lines keep their amounts here (server side) for the total; only plain-language
+  // quantities are sent to the browser.
+  for (const [key, label, n] of [['coreCeus', 'Core Knowledge CEUs', sel.coreCeus], ['skillsCeus', `${b.trainingLabel} CEUs`, sel.skillsCeus]]) {
     if (n === null) missing.push(key);
     else if (!rateVis) missing.push('ceuRate');
-    else if (n > 0) lines.push({ ...line(`${n} ${label}`, n, rate), group: 'education' });
+    else if (n > 0) lines.push({ label: `${n} ${label}`, amount: n * rate, group: 'education' });
   }
-  if (sel.sar) { if (sarVis) lines.push({ label: 'SAR', math: null, amount: m.sar.price, group: 'addon' }); else missing.push('sarPrice'); }
+  if (sel.sar) { if (sarVis) lines.push({ label: 'SAR (Sexuality Attitude Reassessment)', amount: m.sar.price, group: 'sar' }); else missing.push('sarPrice'); }
   if (where !== 'outside') {
     if (sel.individualHours === null || sel.groupSessions === null) missing.push('supervisionQty');
     else if (supVis) {
-      if (sel.individualHours > 0) lines.push({ ...line(`${sel.individualHours} individual supervision hour${sel.individualHours === 1 ? '' : 's'}`, sel.individualHours, m.supervision.individualRate), group: 'supervision' });
-      if (sel.groupSessions > 0) lines.push({ ...line(`${sel.groupSessions} group supervision session${sel.groupSessions === 1 ? '' : 's'} (${m.supervision.groupSessionHours} hours each)`, sel.groupSessions, m.supervision.groupSessionRate), group: 'supervision' });
+      if (sel.individualHours > 0) lines.push({ label: `${sel.individualHours} hour${sel.individualHours === 1 ? '' : 's'} of individual supervision`, amount: sel.individualHours * m.supervision.individualRate, group: 'supervision' });
+      if (sel.groupSessions > 0) lines.push({ label: `${sel.groupSessions} group supervision session${sel.groupSessions === 1 ? '' : 's'}, ${m.supervision.groupSessionHours} hours each`, amount: sel.groupSessions * m.supervision.groupSessionRate, group: 'supervision' });
     } else if (sel.individualHours + sel.groupSessions > 0) missing.push('supervisionRates');
   }
-  const exact = lines.reduce((s, l) => s + l.amount, 0);
-  const educationSubtotal = lines.filter((l) => l.group === 'education').reduce((s, l) => s + l.amount, 0);
-  const total = showRates ? exact : Math.round(exact / ROUND_WHEN_RATES_HIDDEN) * ROUND_WHEN_RATES_HIDDEN;
+  const total = lines.reduce((s, l) => s + l.amount, 0);
+  // "Based on the courses, supervision and SAR you’d buy…": built from what's selected.
+  const parts = [lines.some((l) => l.group === 'education') && 'courses', lines.some((l) => l.group === 'supervision') && 'supervision', lines.some((l) => l.group === 'sar') && 'SAR'].filter(Boolean);
+  const joined = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
+  const basedOn = joined ? `Based on the ${joined} you’d buy individually from NWIOI through ${names.modular}.` : null;
   const draftModular = [rateVis && m.ceuRate.status !== 'approved', sarVis && sel.sar && m.sar.status !== 'approved', supVis && where !== 'outside' && m.supervision.status !== 'approved'].some(Boolean);
   const modularNotes = [];
-  if (where === 'outside') modularNotes.push('Supervision with an outside supervisor isn’t included. You’ll pay your supervisor separately.');
+  if (where === 'outside') modularNotes.push('You’ll pay your outside supervisor separately.');
   if (missing.includes('coreCeus')) modularNotes.push(ck.state === 'unsure' ? 'Core knowledge hours still need review. Choose how many core CEUs you expect to buy, or review it with admissions.' : 'Choose how many core knowledge CEUs you expect to buy.');
   if (missing.includes('skillsCeus')) modularNotes.push(sk.state === 'unsure' ? `${b.trainingLabel} hours still need review. Choose how many you expect to buy, or review it with admissions.` : `Choose how many ${b.trainingLabel.toLowerCase()} CEUs you expect to buy.`);
   if (missing.includes('supervisionQty')) modularNotes.push(sup.state === 'unsure' ? 'Your supervision hours still need review. Choose the supervision you’d buy, or review it with admissions.' : 'Choose how much supervision you’d buy from NWIOI.');
@@ -214,12 +215,10 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
   const modular = {
     key: 'modular', name: names.modular, available: true,
     price: lines.length || modularComplete
-      ? { amount: total, display: money(total), label: 'Estimated cost with NWIOI', fixed: false, draft: draftModular, complete: modularComplete, rounded: !showRates }
+      ? { amount: total, display: money(total), label: 'Estimated cost with NWIOI', fixed: false, draft: draftModular, complete: modularComplete }
       : { amount: null, label: 'Estimated cost with NWIOI', confirmText: missing.includes('ceuRate') ? 'Confirm Modular pricing with admissions' : 'Choose what you’d buy to see your estimate' },
-    // With rates hidden, only unit descriptions are sent (no per-unit rates or per-line amounts).
-    lines: showRates ? lines.map((l) => ({ label: l.label, math: l.math, amount: money(l.amount), group: l.group })) : lines.map((l) => ({ label: l.label, group: l.group })),
-    educationSubtotal: showRates && lines.some((l) => l.group === 'education') ? money(educationSubtotal) : null,
-    showRates, notes: modularNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
+    // Quantities only: no unit prices, formulas or per-line amounts leave the server.
+    items: lines.map((l) => l.label), basedOn, notes: modularNotes, selection: sel, suggestion, outsideSupervision: where === 'outside',
     sarOffer: sarOffered && sarVis ? (sar === 'no' ? `Add SAR (${money(m.sar.price)})` : `Add SAR for ${money(m.sar.price)} if needed`) : sarOffered ? 'Add SAR if needed' : null,
     units: { groupSessionHours: m.supervision.groupSessionHours, trainingLabel: b.trainingLabel },
     included: ['The CEU courses you choose', where === 'outside' ? 'Supervision with your outside supervisor (paid separately)' : 'Supervision hours and group sessions as you need them', 'SAR as an add-on if you need one'],
@@ -247,7 +246,7 @@ export function trackEstimate(catalog, ruleset, input, { preview = false, links 
       reasons.push('You still want the full NWIOI supervision package, which Core includes.');
       reasons.push('Admissions will confirm that your prior training and the Core curriculum together cover the required topics and live hours.');
     } else {
-      const modularCheaper = modularComplete && supVis && rateVis && exact < c.tuition;
+      const modularCheaper = modularComplete && supVis && rateVis && total < c.tuition;
       if (modularCheaper) {
         recommended = 'modular';
         reasons.push('Based on your answers, buying only what you still need may cost less than the full Comprehensive package.');

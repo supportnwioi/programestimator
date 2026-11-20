@@ -69,7 +69,6 @@ Each hours question has a slider, a number box, “None yet” and “I’m not 
 **Credentials vs tiers.** AASECT credentials set the training requirements, and NWIOI tiers are what someone buys. Everything is configured in `config/tracks.json`, editable under Admin → **Tracks & tuition**:
 - **Per credential:** curriculum, supervision package and minimum period, tuition, payment plans, links and status. When the catalog is saved, these are checked against the active AASECT ruleset.
 - **Pay in full:** `payInFull` sets the 7% saving and which tiers it applies to.
-- **Rate display:** `display.showModularRates` switches between showing the exact math and showing units only.
 - **Scholarship:** `scholarship` holds the FIELD Growth Scholarship text and link.
 
 Only `"approved"` items show prices and links publicly. Drafts are visible to signed-in admins, or to everyone with `NWIOI_PREVIEW=1`, always labeled. Otherwise the public sees “Confirm tuition with admissions” or “Confirm Core tuition with admissions”.
@@ -81,7 +80,8 @@ Only `"approved"` items show prices and links publicly. Drafts are visible to si
 - **Tier III · Modular:** **Estimated cost with NWIOI**, made up of:
   - $35 × the CEUs they plan to buy, with each education category calculated separately (extra hours in one never close the other’s gap);
   - plus selected add-ons: “Add SAR for $650 if needed”, NWIOI individual supervision hours, and group sessions.
-  - It shows the exact math and subtotal, with no rounding. Outside supervision is excluded, with a note that they pay their supervisor separately.
+  - Visitors see one exact total, plus an expandable **What's included** list of plain-language quantities (for example, "55 Core Knowledge CEUs" or "26 hours of individual supervision"). They don't see unit prices, formulas, line amounts or subtotals, and none of those are sent to the browser. **Change what you'd buy** lets visitors adjust the quantities. Outside supervision is excluded, with the note "You'll pay your outside supervisor separately."
+- **On Comprehensive and Core:** an **Estimated cost if purchased separately** figure shows the same Modular total. It updates live, with a sentence built from what's included (courses, supervision, and SAR only when it's selected) and a **See what's included** list.
 - **FIELD Growth Scholarship and equity rates:** shown next to the price, with **View scholarship application** (the current form) and **Ask about equity rates** (admissions). Award amounts, and whether they combine with pay in full, are left to NWIOI.
 
 **Recommendation rules** (once the answers are in), in order:

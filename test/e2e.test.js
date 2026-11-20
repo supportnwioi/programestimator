@@ -405,19 +405,22 @@ test('Track finder (preview): pay in full and fixed tuition per credential; Core
   await page.close();
 });
 
-test('Track finder (preview): Modular math by category, SAR add-on, outside supervision, unknowns', async () => {
+test('Track finder (preview): Modular total by category, quantities only, SAR add-on, outside supervision, unknowns', async () => {
   const page = await newPage(BASE2);
   await choose(page, 'sex_therapist');
   await answerFinder(page, { core: 80, skills: 30, supervision: 0, sar: 'yes', where: 'outside' });
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-name"]'), 'Tier III · Modular');
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$1,400');
-  const math = await text(page, '[data-testid="modular-math"]');
-  assert.match(math, /10 core knowledge CEUs\s*10 × \$35\s*\$350/);
-  assert.match(math, /30 Sex Therapy Skills Training CEUs\s*30 × \$35\s*\$1,050/);
-  assert.equal(await text(page, '[data-testid="education-subtotal"]'), '$1,400');
-  assert.match(await text(page, '.quick-price'), /Estimated cost with NWIOI/);
-  assert.match(await text(page, '.quick-price'), /pay your supervisor separately/);
+  // One total; the breakdown expands to quantities only.
+  assert.equal(await page.isVisible('[data-testid="modular-items"]'), false, 'collapsed until expanded');
+  await page.click('[data-testid="modular-included"] summary');
+  assert.deepEqual(await page.$$eval('[data-testid="modular-items"] li', (els) => els.map((e) => e.textContent)), ['10 Core Knowledge CEUs', '30 Sex Therapy Skills Training CEUs']);
+  const panel = await text(page, '.quick-price');
+  for (const hidden of ['× $', '$35', '$350', '$1,050', 'subtotal']) assert.ok(!panel.includes(hidden), `shows ${hidden}`);
+  assert.match(panel, /Estimated cost with NWIOI/);
+  assert.match(panel, /You’ll pay your outside supervisor separately\./);
+  assert.equal(await text(page, '[data-testid="planning"]'), PLANNING);
   assert.equal(await page.locator('#mod-ind').count(), 0, 'no supervision lines when supervising outside');
   // 80 CEUs: $2,800; with the SAR add-on: $3,450 (SAR "not sure" offers it).
   await page.fill('#core-num', '30');
@@ -431,6 +434,7 @@ test('Track finder (preview): Modular math by category, SAR add-on, outside supe
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$3,450');
   // The visitor can change how many CEUs they plan to buy; focus stays.
+  await page.click('[data-testid="modular-adjust"] summary');
   await page.fill('#mod-skills', '21');
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), '$3,485', '60 core + 21 skills = 81 CEUs × $35 + $650 SAR, exact, not rounded');
@@ -454,8 +458,10 @@ test('Track finder (preview): Modular math by category, SAR add-on, outside supe
   await page.fill('#supervision-num', '20');
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-name"]'), 'Tier III · Modular');
-  assert.match(await text(page, '[data-testid="modular-math"]'), /individual supervision hours\s*\d+ × \$195/);
-  assert.match(await text(page, '[data-testid="modular-math"]'), /group supervision sessions? \(3 hours each\)\s*\d+ × \$200/);
+  const items = await page.$$eval('[data-testid="modular-items"] li', (els) => els.map((e) => e.textContent));
+  assert.ok(items.some((x) => /^\d+ hours of individual supervision$/.test(x)), items.join(' | '));
+  assert.ok(items.some((x) => /^\d+ group supervision sessions?, 3 hours each$/.test(x)), items.join(' | '));
+  assert.ok(!items.join(' ').includes('$'));
   await page.close();
 });
 
@@ -562,32 +568,62 @@ test('Track finder: live estimate bar stays pinned to the top and flashes on cha
   await page.close();
 });
 
-test('Track finder: with a fixed package shown, moving the sliders visibly changes the live Modular comparison', async () => {
+test('Track finder: Comprehensive shows “Estimated cost if purchased separately”, live; screenshot scenario $10,695', async () => {
   const page = await newPage(BASE2);
   await choose(page, 'sex_therapist');
-  await answerFinder(page, { core: 0, skills: 0, supervision: 0, sar: 'no', where: 'nwioi' });
+  await answerFinder(page, { core: 0, skills: 0, supervision: 0, sar: 'yes', where: 'nwioi' });
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-name"]'), 'Tier I · Comprehensive');
-  assert.match(await text(page, '[data-testid="fixed-note"]'), /This package price is fixed/);
+  assert.equal(await text(page, '[data-testid="fixed-note"]'), 'Comprehensive has a fixed tuition. If you’ve already completed some training, Core or Modular may be a better fit.');
+  assert.match(await text(page, '[data-testid="modular-live"]'), /^\s*Estimated cost if purchased separately/);
   const prices = [];
-  for (const [c, s] of [[0, 0], [20, 10], [35, 15]]) {
+  for (const [c, s] of [[0, 0], [20, 0], [35, 0]]) {
     await page.fill('#core-num', String(c));
     await page.fill('#skills-num', String(s));
     await settled(page);
     assert.equal(await text(page, '[data-testid="rec-price"]'), '$8,500', 'package stays fixed');
     prices.push(await text(page, '[data-testid="modular-live-price"]'));
   }
-  assert.equal(new Set(prices).size, 3, `live comparison changes with each answer: ${prices.join(' → ')}`);
-  assert.match(await text(page, '#price-bar'), /Only what you need: \$/);
-  // The keyboard slider also moves it.
+  assert.equal(new Set(prices).size, 3, `the separate-purchase estimate changes with each answer: ${prices.join(' → ')}`);
+  // The screenshot scenario.
+  assert.equal(prices[2], '$10,695');
+  assert.equal(await text(page, '[data-testid="based-on"]'), 'Based on the courses and supervision you’d buy individually from NWIOI through Tier III · Modular.');
+  await page.click('[data-testid="separate-included"] summary');
+  assert.deepEqual(await page.$$eval('[data-testid="separate-items"] li', (els) => els.map((e) => e.textContent)),
+    ['55 Core Knowledge CEUs', '60 Sex Therapy Skills Training CEUs', '26 hours of individual supervision', '8 group supervision sessions, 3 hours each']);
+  const card = await text(page, '[data-testid="modular-live"]');
+  for (const hidden of ['× $', '$35', '$195', '$200', '$1,925', '$5,070']) assert.ok(!card.includes(hidden), `shows ${hidden}`);
+  assert.match(await text(page, '#price-bar'), /If purchased separately: \$10,695/);
+  // The list stays open while answers change, and SAR appears only once it's included.
+  await page.check('input[name="sar"][value="no"]');
+  await settled(page);
+  assert.equal(await text(page, '[data-testid="based-on"]'), 'Based on the courses, supervision and SAR you’d buy individually from NWIOI through Tier III · Modular.');
+  assert.equal(await text(page, '[data-testid="modular-live-price"]'), '$11,345');
+  // Keyboard slider moves it too.
   const before = await text(page, '[data-testid="modular-live-price"]');
   await page.focus('#core-range');
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
   await settled(page);
   assert.notEqual(await text(page, '[data-testid="modular-live-price"]'), before);
-  // "See how this is calculated" opens the comparison with the math.
-  await page.click('[data-open-compare]');
-  assert.equal(await page.evaluate(() => document.getElementById('compare').open), true);
-  assert.match(await text(page, '[data-track="modular"] [data-testid="modular-math"]'), /× \$35/);
+  await page.close();
+});
+
+test('Track finder: “purchased separately” card and Modular list read cleanly on mobile', async () => {
+  const page = await browser.newPage({ ...devices['iPhone 13'] });
+  page.on('pageerror', (e) => { throw e; });
+  await page.goto(BASE2);
+  await choose(page, 'sex_therapist');
+  await answerFinder(page, { core: 35, skills: 0, supervision: 0, sar: 'yes', where: 'nwioi' });
+  await settled(page);
+  await page.click('[data-testid="separate-included"] summary');
+  assert.equal(await text(page, '[data-testid="modular-live-price"]'), '$10,695');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, 'no horizontal scroll');
+  // Each item sits on its own line, inside the screen.
+  const boxes = await page.$$eval('[data-testid="separate-items"] li', (els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.top]; }));
+  assert.equal(boxes.length, 4);
+  for (const [l, r] of boxes) assert.ok(l >= 0 && r <= 390, `item inside the screen: ${l}-${r}`);
+  for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i][2] > boxes[i - 1][2], 'one item per line');
+  await page.locator('[data-testid="modular-live"]').scrollIntoViewIfNeeded();
+  await page.locator('.quick-price').screenshot({ path: SHOTS ? path.join(SHOTS, '14-separately-mobile.png') : path.join(os.tmpdir(), 'x.png') });
   await page.close();
 });
