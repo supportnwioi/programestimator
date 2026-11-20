@@ -1,6 +1,6 @@
 {
   "_about": "NWIOI track catalog: what each credential's tiers include and cost. status 'approved' = shown to the public; 'draft' = shown only in preview (local preview or a signed-in admin). Credentials (AASECT) set the requirements; tiers are what someone buys from NWIOI.",
-  "version": "2026-11-20-preview",
+  "version": "2026-11-20-preview-2",
   "tierNames": {
     "comprehensive": "Tier I · Comprehensive",
     "core": "Tier II · Core",
@@ -17,15 +17,38 @@
         "tuition": 8500,
         "includesSar": true,
         "curriculum": [
-          { "name": "Core knowledge (shared across all three credentials)", "ceus": 90, "requirement": "core" },
-          { "name": "Sex therapy skills training", "ceus": 60, "requirement": "training" }
+          {
+            "name": "Core knowledge (shared across all three credentials)",
+            "ceus": 90,
+            "requirement": "core"
+          },
+          {
+            "name": "Sex therapy skills training",
+            "ceus": 60,
+            "requirement": "training"
+          }
         ],
-        "supervision": { "individualHours": 26, "groupHours": 24, "groupSessions": 12, "groupSessionHours": 2, "description": "26 individual hours and 24 group hours in twelve two-hour sessions" },
+        "supervision": {
+          "individualHours": 26,
+          "groupHours": 24,
+          "groupSessions": 12,
+          "groupSessionHours": 2,
+          "description": "26 individual hours and 24 group hours in twelve two-hour sessions"
+        },
         "minMonths": 18,
         "lead": null,
-        "highlights": ["Live intensives plus self-paced coursework", "Small-cohort supervision groups", "SAR included", "Faculty mentorship throughout"],
+        "highlights": [
+          "Live intensives plus self-paced coursework",
+          "Small-cohort supervision groups",
+          "SAR included",
+          "Faculty mentorship throughout"
+        ],
         "paymentPlans": [],
-        "links": { "enroll": "", "supervisors": "", "sampleWeekend": "" }
+        "links": {
+          "enroll": "",
+          "supervisors": "",
+          "sampleWeekend": ""
+        }
       },
       "core": {
         "defined": true,
@@ -34,18 +57,44 @@
         "sarAddOn": 650,
         "ceus": 99,
         "supervisionHours": 50,
-        "supervision": { "individualHours": 26, "groupHours": 24, "groupSessions": 12, "groupSessionHours": 2, "description": "26 individual hours and 24 group hours in twelve two-hour sessions" },
+        "supervision": {
+          "individualHours": 26,
+          "groupHours": 24,
+          "groupSessions": 12,
+          "groupSessionHours": 2,
+          "description": "26 individual hours and 24 group hours in twelve two-hour sessions"
+        },
         "fitCeus": 51,
-        "highlights": ["99 CEUs of NWIOI coursework, including the live intensives", "Your prior education may cover the remaining 51 CEUs", "Full supervision package"],
+        "highlights": [
+          "99 CEUs of NWIOI coursework, including the live intensives",
+          "Your prior education may cover the remaining 51 CEUs",
+          "Full supervision package"
+        ],
         "paymentPlans": [],
-        "links": { "apply": "" }
+        "links": {
+          "apply": ""
+        }
       },
       "modular": {
-        "ceuRate": { "amount": 35, "status": "draft" },
-        "sar": { "price": 650, "status": "draft" },
-        "supervision": { "individualRate": 195, "groupSessionRate": 200, "groupSessionHours": 3, "status": "draft" },
-        "links": { "courses": "" }
-      }
+        "ceuRate": {
+          "amount": 35,
+          "status": "draft"
+        },
+        "sar": {
+          "price": 650,
+          "status": "draft"
+        },
+        "supervision": {
+          "individualRate": 195,
+          "groupSessionRate": 200,
+          "groupSessionHours": 3,
+          "status": "draft"
+        },
+        "links": {
+          "courses": ""
+        }
+      },
+      "skillsExample": "For example, a training on sensate focus or on assessing and treating sexual pain."
     },
     "sexuality_counselor": {
       "comprehensive": {
@@ -53,23 +102,63 @@
         "tuition": 7950,
         "includesSar": true,
         "curriculum": [
-          { "name": "Core knowledge (shared across all three credentials)", "ceus": 90, "requirement": "core" },
-          { "name": "Sexuality counseling skills training", "ceus": 60, "requirement": "training" }
+          {
+            "name": "Core knowledge (shared across all three credentials)",
+            "ceus": 90,
+            "requirement": "core"
+          },
+          {
+            "name": "Sexuality counseling skills training",
+            "ceus": 60,
+            "requirement": "training"
+          }
         ],
-        "supervision": { "individualHours": 15, "groupHours": 15, "groupSessions": 5, "groupSessionHours": 3, "groupSize": 3, "description": "15 individual hours and 15 group hours in five three-hour sessions with three supervisees" },
+        "supervision": {
+          "individualHours": 15,
+          "groupHours": 15,
+          "groupSessions": 5,
+          "groupSessionHours": 3,
+          "groupSize": 3,
+          "description": "15 individual hours and 15 group hours in five three-hour sessions with three supervisees"
+        },
         "minMonths": 12,
         "lead": null,
-        "highlights": ["Live intensives plus self-paced coursework", "Small-group supervision (three supervisees)", "SAR included", "Faculty mentorship throughout"],
+        "highlights": [
+          "Live intensives plus self-paced coursework",
+          "Small-group supervision (three supervisees)",
+          "SAR included",
+          "Faculty mentorship throughout"
+        ],
         "paymentPlans": [],
-        "links": { "enroll": "", "supervisors": "", "sampleWeekend": "" }
+        "links": {
+          "enroll": "",
+          "supervisors": "",
+          "sampleWeekend": ""
+        }
       },
-      "core": { "defined": false },
+      "core": {
+        "defined": false
+      },
       "modular": {
-        "ceuRate": { "amount": 35, "status": "draft" },
-        "sar": { "price": 650, "status": "draft" },
-        "supervision": { "individualRate": 195, "groupSessionRate": 200, "groupSessionHours": 3, "status": "draft" },
-        "links": { "courses": "" }
-      }
+        "ceuRate": {
+          "amount": 35,
+          "status": "draft"
+        },
+        "sar": {
+          "price": 650,
+          "status": "draft"
+        },
+        "supervision": {
+          "individualRate": 195,
+          "groupSessionRate": 200,
+          "groupSessionHours": 3,
+          "status": "draft"
+        },
+        "links": {
+          "courses": ""
+        }
+      },
+      "skillsExample": "For example, a training on counseling clients about sexual concerns or working with specific populations."
     },
     "sexuality_educator": {
       "comprehensive": {
@@ -77,23 +166,84 @@
         "tuition": 7250,
         "includesSar": true,
         "curriculum": [
-          { "name": "Core knowledge (shared across all three credentials)", "ceus": 90, "requirement": "core" },
-          { "name": "Sexuality education skills training", "ceus": 60, "requirement": "training" }
+          {
+            "name": "Core knowledge (shared across all three credentials)",
+            "ceus": 90,
+            "requirement": "core"
+          },
+          {
+            "name": "Sexuality education skills training",
+            "ceus": 60,
+            "requirement": "training"
+          }
         ],
-        "supervision": { "individualHours": 5, "groupHours": 20, "groupSessions": 10, "groupSessionHours": 2, "description": "Five individual hours with your primary supervisor and 20 group hours in ten two-hour sessions" },
+        "supervision": {
+          "individualHours": 5,
+          "groupHours": 20,
+          "groupSessions": 10,
+          "groupSessionHours": 2,
+          "description": "Five individual hours with your primary supervisor and 20 group hours in ten two-hour sessions"
+        },
         "minMonths": 9,
         "lead": "Design and deliver a sexuality education program with feedback from an AASECT Certified Sexuality Educator Supervisor.",
-        "highlights": ["Live intensives plus self-paced coursework", "Group supervision focused on your teaching", "SAR included", "Faculty mentorship throughout"],
+        "highlights": [
+          "Live intensives plus self-paced coursework",
+          "Group supervision focused on your teaching",
+          "SAR included",
+          "Faculty mentorship throughout"
+        ],
         "paymentPlans": [],
-        "links": { "enroll": "", "supervisors": "", "sampleWeekend": "" }
+        "links": {
+          "enroll": "",
+          "supervisors": "",
+          "sampleWeekend": ""
+        }
       },
-      "core": { "defined": false },
+      "core": {
+        "defined": false
+      },
       "modular": {
-        "ceuRate": { "amount": 35, "status": "draft" },
-        "sar": { "price": 650, "status": "draft" },
-        "supervision": { "individualRate": 195, "groupSessionRate": 200, "groupSessionHours": 3, "status": "draft" },
-        "links": { "courses": "" }
-      }
+        "ceuRate": {
+          "amount": 35,
+          "status": "draft"
+        },
+        "sar": {
+          "price": 650,
+          "status": "draft"
+        },
+        "supervision": {
+          "individualRate": 195,
+          "groupSessionRate": 200,
+          "groupSessionHours": 3,
+          "status": "draft"
+        },
+        "links": {
+          "courses": ""
+        }
+      },
+      "skillsExample": "For example, a training on designing a sexuality education curriculum or facilitating groups."
     }
-  }
+  },
+  "payInFull": {
+    "rate": 0.07,
+    "status": "draft",
+    "tiers": [
+      "comprehensive",
+      "core"
+    ],
+    "appliesToAddOns": false,
+    "_note": "Pay in full: package tuition x (1 - rate), rounded to the cent. Add-ons (e.g. Core SAR) stay at full price. Modular is excluded."
+  },
+  "display": {
+    "showModularRates": true,
+    "_note": "true: Modular shows the exact math (e.g. 40 CEUs x $35 = $1,400). false: units only, one total rounded to the nearest $50, and no per-unit rates sent to the browser."
+  },
+  "scholarship": {
+    "title": "FIELD Growth Scholarship",
+    "copy": "NWIOI offers a discounted rate for people with marginalized and intersecting identities who are underrepresented in sex therapy, sexuality counseling, or sexuality education and are experiencing financial need.",
+    "applicationUrl": "https://forms.wix.com/f/7167298250691576552",
+    "status": "approved",
+    "_note": "Award amounts and whether they combine with pay-in-full savings are decided by NWIOI through the scholarship process, not the calculator."
+  },
+  "coreKnowledgeExample": "For example, a human sexuality course or a training on sexual development."
 }

@@ -50,7 +50,9 @@ app.get('/api/config', (req, res) => {
   const s = store.settings.get();
   const preview = isPreview(req);
   const paths = Object.values(activeRulesets()).map(publicRuleset);
-  res.json({ paths, links: publicLinks(s, preview), preview, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
+  const catalog = store.tracks.get() || {};
+  const examples = { core: catalog.coreKnowledgeExample || '', skills: Object.fromEntries(Object.entries(catalog.credentials || {}).map(([k, v]) => [k, v.skillsExample || ''])) };
+  res.json({ paths, links: publicLinks(s, preview), preview, examples, documentReview: aiAvailable() ? 'ai' : 'offline-demo' });
 });
 
 // Track finder: recommend an NWIOI tier for a credential and price it.
@@ -64,9 +66,9 @@ app.post('/api/track-estimate', (req, res) => {
   if (!catalog?.credentials?.[r.path]) return res.status(400).json({ error: 'No NWIOI tracks are configured for this credential yet.' });
   const m = b.modular && typeof b.modular === 'object' ? b.modular : {};
   const result = trackEstimate(catalog, r, {
-    education: val(b.education), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
+    core: val(b.core), skills: val(b.skills), supervision: val(b.supervision), sar: b.sar ?? null, supervisionWhere: b.supervisionWhere ?? null,
     coreSar: typeof b.coreSar === 'boolean' ? b.coreSar : null,
-    modular: { ceus: m.ceus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
+    modular: { coreCeus: m.coreCeus ?? null, skillsCeus: m.skillsCeus ?? null, sar: typeof m.sar === 'boolean' ? m.sar : null, individualHours: m.individualHours ?? null, groupSessions: m.groupSessions ?? null },
   }, { preview: isPreview(req), links: { booking: s.schedulingUrl, contact: s.contactUrl } });
   res.json(result);
 });

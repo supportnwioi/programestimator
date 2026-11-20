@@ -1,20 +1,22 @@
 // Track finder: credential → a few answers → one recommended NWIOI tier with
-// tuition (or a Modular estimate), what's included, and one next step.
+// standard tuition (or a Modular estimate), what's included, and one next step.
 // All pricing comes from POST /api/track-estimate (server-side catalog).
 const $main = document.getElementById('finder');
 const $bar = document.getElementById('price-bar');
-const $headerBook = document.getElementById('header-book');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const PLANNING_COPY = 'This is a planning estimate. You and NWIOI admissions will review your prior training, the track that fits your goals, and any scholarship or equity options. We’ll confirm your final NWIOI cost together before you enroll.';
 
 let config = null;
 let result = null;
-const fresh = () => ({ path: null, education: null, supervision: null, sar: null, where: null, coreSar: null, modular: { ceus: null, sar: null, individualHours: null, groupSessions: null } });
+const freshModular = () => ({ coreCeus: null, skillsCeus: null, sar: null, individualHours: null, groupSessions: null });
+const fresh = () => ({ path: null, core: null, skills: null, supervision: null, sar: null, where: null, coreSar: null, modular: freshModular() });
 let state = fresh();
 
 const deciding = () => state.path === 'deciding';
 const pathCfg = () => config.paths.find((p) => p.path === state.path);
-function load() { try { const s = JSON.parse(sessionStorage.getItem('nwioi-finder')); if (s) state = { ...fresh(), ...s, modular: { ...fresh().modular, ...(s.modular || {}) } }; } catch { /* storage unavailable */ } }
-function save() { try { sessionStorage.setItem('nwioi-finder', JSON.stringify(state)); } catch { /* storage unavailable */ } }
+function load() { try { const s = JSON.parse(sessionStorage.getItem('nwioi-finder-v2')); if (s) state = { ...fresh(), ...s, modular: { ...freshModular(), ...(s.modular || {}) } }; } catch { /* storage unavailable */ } }
+function save() { try { sessionStorage.setItem('nwioi-finder-v2', JSON.stringify(state)); } catch { /* storage unavailable */ } }
 
 // ------------------------------------------------------------------ links
 function linkHtml(link, label, cls = '', testid = '') {
@@ -55,18 +57,20 @@ function hoursQuestion(key, title, hint, max, scaleLabel) {
   </fieldset>`;
 }
 
-const radioGroup = (name, legend, options, value, hint = '') => `
-  <fieldset><legend>${esc(legend)}</legend>${hint}
+const radioGroup = (name, legend, options, value) => `
+  <fieldset><legend>${esc(legend)}</legend>
     <div class="seg">${options.map(([k, l]) => `<label><input type="radio" name="${name}" value="${k}" ${value === k ? 'checked' : ''}> ${esc(l)}</label>`).join('')}</div>
   </fieldset>`;
 
 function questions(p) {
   const b = p.benchmarks;
+  const ex = config.examples || {};
   return `
   <section class="card">
-    ${hoursQuestion('education', 'How many hours of relevant education have you completed?',
-      `A rough estimate of graduate coursework, training, and continuing education that might apply. The ${esc(p.pathName)} credential calls for ${b.education} hours.`,
-      b.education, 'education benchmark')}
+    <h2 class="q-group">Education you’ve completed</h2>
+    <p class="small muted">Rough estimates of graduate coursework, training, and continuing education that might apply. The ${esc(p.pathName)} credential calls for ${b.core} core knowledge hours and ${b.skills} skills training hours. Extra hours in one category don’t count toward the other.</p>
+    ${hoursQuestion('core', 'Core Knowledge Areas (CKAs)', `Up to ${b.core} hours. ${esc(ex.core || '')}`, b.core, 'core knowledge')}
+    ${hoursQuestion('skills', b.trainingLabel, `Up to ${b.skills} hours. ${esc(ex.skills?.[p.path] || '')}`, b.skills, 'skills training')}
     <details class="credits">
       <summary>My coursework is listed in credits</summary>
       <p class="small">AASECT counts one college or university semester credit as ${b.semesterCreditClockHours} hours (a 3-credit semester course = ${3 * b.semesterCreditClockHours} hours). Continuing education from bodies other than AASECT counts at ${b.nonAasectCeMultiplier === 0.5 ? 'half' : `${b.nonAasectCeMultiplier}×`} value. Quarter credits have no published conversion, so admissions will review those with you.</p>
@@ -74,20 +78,22 @@ function questions(p) {
         <label class="small" for="credits-in" style="margin:0">Semester credits</label>
         <input type="number" id="credits-in" min="0" step="0.5" inputmode="decimal" style="max-width:110px">
         <span class="small" id="credits-out" aria-live="polite"></span>
-        <button type="button" data-add-credits>Add to my education hours</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button type="button" data-add-credits="core">Add to core knowledge</button>
+        <button type="button" data-add-credits="skills">Add to skills training</button>
       </div>
       <p class="small muted">Count each course once. If it’s already in your hours above, don’t add it again.</p>
     </details>
   </section>
   <section class="card">
-    ${hoursQuestion('supervision', 'How many supervision hours have you completed toward this credential?',
-      `Supervision with an ${esc(p.terms.supervisorTitle)}. The standard target for this credential is ${b.supervision} hours.`,
+    ${hoursQuestion('supervision', 'Supervision completed toward this credential',
+      `Up to ${b.supervision} hours with an ${esc(p.terms.supervisorTitle)}.`,
       b.supervision, 'standard target')}
   </section>
   <section class="card">
-    ${radioGroup('sar', 'Have you completed a general Sexuality Attitude Reassessment (SAR)?', [['yes', 'Yes'], ['no', 'No'], ['unsure', 'I’m not sure']], state.sar,
-      state.sar === 'yes' ? '' : '')}
-    ${state.sar === 'yes' ? '<p class="small muted">Thanks, we’ll note it as self-reported. Admissions can confirm whether your SAR meets the requirement.</p>' : ''}
+    ${radioGroup('sar', 'Have you completed a Sexuality Attitude Reassessment (SAR)?', [['yes', 'Yes'], ['no', 'No'], ['unsure', 'I’m not sure']], state.sar)}
+    ${state.sar === 'yes' ? '<p class="small muted">Thanks. Admissions can confirm whether a previously completed SAR meets the requirement.</p>' : ''}
   </section>
   <section class="card">
     ${radioGroup('where', 'Where would you like to do your supervision?', [['nwioi', 'With NWIOI'], ['outside', 'With an outside supervisor'], ['help', 'Help me decide']], state.where)}
@@ -97,14 +103,29 @@ function questions(p) {
 // ------------------------------------------------------------------ result
 function priceBlock(t, { big = false } = {}) {
   const p = t.price;
+  const id = big ? 'rec-price' : `price-${t.key}`;
   if (p.amount === null || p.amount === undefined) {
-    return `<p class="${big ? 'range personal' : 'price-sm'}" data-testid="${big ? 'rec-price' : `price-${t.key}`}">${esc(p.confirmText)}</p>`;
+    return `<p class="${big ? 'range personal' : 'price-sm'}" data-testid="${id}">${esc(p.confirmText)}</p>`;
   }
   const partial = p.complete === false ? ' <span class="small muted">so far</span>' : '';
-  return `<p class="price-label-sm small muted">${esc(p.label)}${p.fixed ? ' · fixed package price' : ' · rounded to the nearest $50'}</p>
-    <p class="${big ? 'range' : 'price-sm'}" data-testid="${big ? 'rec-price' : `price-${t.key}`}">${esc(p.display)}${partial}</p>
-    ${p.draft ? '<p><span class="chip warn">Draft tuition · preview only, pending NWIOI approval</span></p>' : ''}
-    ${t.paymentPlans?.length ? `<ul class="small plans">${t.paymentPlans.map((x) => `<li>or ${esc(x.text)}${x.draft ? ' <span class="chip warn">draft</span>' : ''}</li>`).join('')}</ul>` : ''}`;
+  const pif = p.payInFull
+    ? `<p class="pif" data-testid="${big ? 'rec-pif' : `pif-${t.key}`}"><strong>Pay in full · Save ${p.payInFull.percent}%:</strong> ${esc(p.payInFull.display)} <span class="small muted">(you save ${esc(p.payInFull.savings)})</span>${p.payInFull.draft ? ' <span class="chip warn">draft</span>' : ''}</p>`
+    : '';
+  return `<p class="price-label-sm small muted">${esc(p.label)}${p.rounded ? ' · rounded to the nearest $50' : ''}</p>
+    <p class="${big ? 'range' : 'price-sm'}" data-testid="${id}">${esc(p.display)}${partial}</p>
+    ${pif}
+    ${t.paymentPlans?.length ? `<ul class="small plans">${t.paymentPlans.map((x) => `<li>or ${esc(x.text)}${x.draft ? ' <span class="chip warn">draft</span>' : ''}</li>`).join('')}</ul>` : ''}
+    ${p.draft ? '<p><span class="chip warn">Draft pricing · preview only, pending NWIOI approval</span></p>' : ''}`;
+}
+
+function scholarshipBlock() {
+  const s = result?.scholarship;
+  if (!s) return '';
+  return `<details class="scholarship" data-testid="scholarship">
+    <summary>Explore scholarship and equity rates</summary>
+    <p class="small"><strong>${esc(s.title)}</strong><br>${esc(s.copy)}</p>
+    <div class="row">${linkHtml(s.application, 'View scholarship application', 'btn', 'scholarship-apply')} ${linkHtml(s.equity, 'Ask about equity rates', 'small', 'equity')}</div>
+  </details>`;
 }
 
 function ctaHtml(t, primary) {
@@ -117,29 +138,41 @@ function ctaHtml(t, primary) {
   return `<div class="cta">${html}</div>`;
 }
 
+const mathRow = (t) => (l) => `<tr><td>${esc(l.label)}</td>${t.showRates ? `<td class="muted math-col">${l.math ? esc(l.math) : ''}</td><td class="amt">${esc(l.amount)}</td>` : ''}</tr>`;
+
 function modularControls(t) {
-  // Units only: per-unit rates and per-line prices are never shown (or sent).
-  const s = t.selection, u = t.units;
-  const sug = t.suggestion;
+  const s = t.selection, sug = t.suggestion, u = t.units;
+  const num = (id, key, label, max, hint) => `<div class="field"><label for="${id}">${esc(label)}</label>
+      <input type="number" id="${id}" data-mod="${key}" min="0" ${max ? `max="${max}"` : ''} step="1" inputmode="numeric" value="${s[key] ?? ''}" placeholder="Choose">
+      <span class="small muted">${hint}</span></div>`;
+  const sugText = (v, unsureMsg) => (v !== null ? `Suggested from your answers: ${v} remaining` : unsureMsg);
   return `
   <div class="modular-controls" aria-label="What you plan to buy from NWIOI">
-    <div class="field"><label for="mod-ceus">CEUs you plan to buy from NWIOI</label>
-      <input type="number" id="mod-ceus" data-mod="ceus" min="0" max="${result.benchmarks.education}" step="1" inputmode="numeric" value="${s.ceus ?? ''}" placeholder="Choose">
-      <span class="small muted">${sug.ceus !== null ? `Suggested from your answers: ${sug.ceus}` : 'Choose a number, or review it with admissions.'}</span></div>
-    <label class="small" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> Add a SAR</label>
+    <p class="small"><strong>What you plan to buy from NWIOI</strong></p>
+    <div class="grid2">
+      ${num('mod-core', 'coreCeus', 'Core knowledge CEUs', result.benchmarks.core, sugText(sug.coreCeus, 'Needs review. Choose a number or ask admissions.'))}
+      ${num('mod-skills', 'skillsCeus', `${u.trainingLabel} CEUs`, result.benchmarks.skills, sugText(sug.skillsCeus, 'Needs review. Choose a number or ask admissions.'))}
+    </div>
+    ${t.sarOffer ? `<label class="small" style="font-weight:400"><input type="checkbox" data-mod="sar" ${s.sar ? 'checked' : ''}> ${esc(t.sarOffer)}</label>` : ''}
     ${t.outsideSupervision ? '' : `<div class="grid2">
-      <div class="field"><label for="mod-ind">Individual supervision hours</label>
-        <input type="number" id="mod-ind" data-mod="individualHours" min="0" step="1" inputmode="numeric" value="${s.individualHours ?? ''}" placeholder="Choose">
-        <span class="small muted">One-to-one with an NWIOI supervisor</span></div>
-      <div class="field"><label for="mod-grp">Group supervision sessions</label>
-        <input type="number" id="mod-grp" data-mod="groupSessions" min="0" step="1" inputmode="numeric" value="${s.groupSessions ?? ''}" placeholder="Choose">
-        <span class="small muted">${u.groupSessionHours} hours each</span></div>
+      ${num('mod-ind', 'individualHours', 'Individual supervision hours', null, 'One-to-one with an NWIOI supervisor')}
+      ${num('mod-grp', 'groupSessions', 'Group supervision sessions', null, `${u.groupSessionHours} hours each`)}
     </div>`}
-    ${t.items.length ? `<p class="small muted" style="margin:8px 0 0">Your estimate includes:</p><ul class="small lines">${t.items.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
+    ${t.lines.length ? `<table class="math small" data-testid="modular-math"><tbody>
+      ${t.lines.filter((l) => l.group === 'education').map(mathRow(t)).join('')}
+      ${t.educationSubtotal ? `<tr class="sub"><td>Education subtotal</td><td></td><td class="amt" data-testid="education-subtotal">${esc(t.educationSubtotal)}</td></tr>` : ''}
+      ${t.lines.filter((l) => l.group !== 'education').map(mathRow(t)).join('')}
+      ${t.price.amount !== null && t.price.amount !== undefined ? `<tr class="total"><td>Estimated cost with NWIOI</td>${t.showRates ? '<td></td>' : ''}<td class="amt">${esc(t.price.display)}${t.price.complete === false ? ' so far' : ''}</td></tr>` : ''}
+    </tbody></table>` : ''}
   </div>`;
 }
 
-function trackCard(t, recommendedKey) {
+function coreSarToggle(t) {
+  if (t.key !== 'core' || t.price.amount === null || !t.price.sarOffered) return '';
+  return `<label class="small" style="font-weight:400"><input type="checkbox" data-core-sar ${t.price.sarIncluded ? 'checked' : ''}> Add SAR${t.price.sarAddOn ? ` for ${esc(t.price.sarAddOn)}` : ''}${state.sar === 'no' ? '' : ' if needed'}</label>`;
+}
+
+function trackCard(t, recommendedKey, controlsShownAbove) {
   if (!t) {
     return `<article class="track-card unavailable"><h3>${esc(result.tierNames.core)}</h3>
       <p class="small">${esc(result.coreNotDefinedNote)}</p>
@@ -150,8 +183,8 @@ function trackCard(t, recommendedKey) {
     ${rec ? '<span class="chip ok">Recommended for you</span>' : ''}
     <h3>${esc(t.name)}</h3>
     ${priceBlock(t)}
-    ${t.key === 'core' && t.price.amount !== null && t.price.sarOffered ? `<label class="small" style="font-weight:400"><input type="checkbox" data-core-sar ${t.price.sarIncluded ? 'checked' : ''}> Include SAR</label>` : ''}
-    ${t.key === 'modular' ? modularControls(t) : ''}
+    ${!(rec && controlsShownAbove) ? coreSarToggle(t) : ''}
+    ${t.key === 'modular' && !(rec && controlsShownAbove) ? modularControls(t) : ''}
     ${t.notes?.length ? `<ul class="small notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <ul class="small included">${t.included.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     ${t.note ? `<p class="small">${esc(t.note)}</p>` : ''}
@@ -160,57 +193,64 @@ function trackCard(t, recommendedKey) {
 }
 
 function resultPanel() {
-  if (!state.path) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Choose the credential you’re working toward to see your recommended track and NWIOI tuition.</p>`;
+  if (!state.path) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Choose the credential you’re working toward to see what’s included and what you’d pay NWIOI.</p>`;
   if (deciding()) {
     return `<h2 class="price-label">Not sure which credential fits?</h2>
       <p>Sex therapist, sexuality counselor and sexuality educator credentials have different training and supervision requirements. In a free admissions call, we’ll talk about your background and goals, explain how each credential works, and help you choose a direction.</p>
-      <div class="cta">${linkHtml(config.links.scheduling, 'Talk through my options', 'btn primary big', 'primary-cta')}</div>`;
+      <div class="cta">${linkHtml(config.links.scheduling, 'Talk through my options', 'btn primary big', 'primary-cta')}</div>
+      <p class="small muted">NWIOI provides training. AASECT makes certification decisions.</p>`;
   }
   if (!result) return `<h2 class="price-label">Your NWIOI track</h2><p class="muted">Loading…</p>`;
-  const t = result.tracks[result.recommended];
-  return `<p class="small muted">Recommended track for the ${esc(result.pathName)} credential</p>
+  const key = result.startingPoint;
+  const t = result.tracks[key];
+  const heading = result.recommended
+    ? `<span class="chip ok" data-testid="rec-chip">Recommended for you</span><p class="small muted" style="margin-top:6px">For the ${esc(result.pathName)} credential</p>`
+    : `<p class="small muted">The complete program for the ${esc(result.pathName)} credential</p>`;
+  return `${heading}
     <h2 class="rec-name" data-testid="rec-name">${esc(t.name)}</h2>
     ${t.lead ? `<p class="lead">${esc(t.lead)}</p>` : ''}
     <div aria-live="polite" aria-atomic="true">${priceBlock(t, { big: true })}</div>
-    ${t.key === 'core' && t.price.amount !== null && t.price.sarOffered ? `<p class="small muted">${t.price.sarIncluded ? 'Includes a SAR' : 'Without a SAR'}</p>` : ''}
-    <h3 class="small-h">Why it fits</h3>
-    <ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
-    ${result.notes.length ? `<ul class="small notes">${result.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    <p class="planning small" data-testid="planning">${esc(PLANNING_COPY)}</p>
+    ${coreSarToggle(t)}
+    ${t.key === 'modular' ? modularControls(t) : ''}
+    ${scholarshipBlock()}
+    ${result.recommended ? `<h3 class="small-h">Why it fits</h3><ul class="small reasons" data-testid="reasons">${result.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>` : ''}
+    ${result.notes.length ? `<ul class="small notes" data-testid="notes">${result.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+    ${t.notes?.length && t.key === 'modular' ? `<ul class="small notes">${t.notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <h3 class="small-h">What’s included</h3>
-    <ul class="small included">${t.included.slice(0, 5).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+    <ul class="small included">${t.included.slice(0, 6).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     ${t.key === 'core' ? `<p class="small">${esc(t.note)}</p>` : ''}
     ${ctaHtml(t, true)}
-    ${t.key === 'modular' ? '<p class="small"><a href="#compare">Adjust what you’d buy</a></p>' : ''}`;
+    <p class="small muted">NWIOI provides training. AASECT makes certification decisions.</p>`;
 }
 
-function compareSection() {
+function compareSection(openNow) {
   if (!result || deciding()) return '';
   const { comprehensive, core, modular } = result.tracks;
-  return `<section id="compare" class="compare" aria-labelledby="compare-h">
-    <h2 id="compare-h">Compare ${core ? 'all three tracks' : 'tracks'} for the ${esc(result.pathName)} credential</h2>
-    <p class="small muted">Comprehensive and Core are fixed package prices. Your answers change which track we recommend and the Modular estimate, not the package tuition.</p>
-    <div class="track-grid">${trackCard(comprehensive, result.recommended)}${trackCard(core, result.recommended)}${trackCard(modular, result.recommended)}</div>
-  </section>`;
+  const shown = result.startingPoint;
+  return `<details id="compare" class="compare" ${openNow ? 'open' : ''}>
+    <summary><h2 id="compare-h">Compare tracks for the ${esc(result.pathName)} credential</h2></summary>
+    <p class="small muted">Comprehensive and Core are fixed package prices. Your answers change which track fits and the Modular estimate, not the package tuition.</p>
+    <div class="track-grid">${trackCard(comprehensive, result.recommended, shown === 'comprehensive')}${trackCard(core, result.recommended, shown === 'core')}${trackCard(modular, result.recommended, shown === 'modular')}</div>
+  </details>`;
 }
 
 // The live number: pinned to the top of the screen, updates as answers change.
 let lastBarValue = null;
 function renderBar() {
-  let label = 'Your NWIOI tuition', name = '', value = '—', sub = 'Choose a credential to see your track and price', valueClass = 'muted-value', draft = false;
+  let label = 'Standard NWIOI tuition', name = '', value = '—', sub = 'Choose a credential to see your track and price', valueClass = 'muted-value', draft = false;
   if (deciding()) {
     label = 'Not sure which credential?'; value = 'Let’s talk'; sub = 'A free admissions call can help you choose'; valueClass = '';
   } else if (state.path && result) {
-    const t = result.tracks[result.recommended];
+    const t = result.tracks[result.startingPoint];
     const known = t.price.amount !== null && t.price.amount !== undefined;
     name = t.name;
-    label = known ? t.price.label : 'Recommended for you';
+    label = known ? t.price.label : (result.recommended ? 'Recommended for you' : 'Complete program');
     value = known ? t.price.display + (t.price.complete === false ? '+' : '') : t.price.confirmText;
     valueClass = known ? '' : 'confirm-value';
-    sub = known ? (t.price.fixed ? 'Fixed package price' : t.price.complete === false ? 'Choose what you’d buy to complete the estimate' : 'Based on what you plan to buy') : 'We’ll confirm your tuition';
+    sub = known && t.price.payInFull ? `Pay in full: ${t.price.payInFull.display} · planning estimate` : known ? 'Planning estimate' : 'We’ll confirm your tuition';
     draft = Boolean(t.price.draft);
-  } else if (state.path) {
-    sub = 'Updating…';
-  }
+  } else if (state.path) sub = 'Updating…';
   const changed = lastBarValue !== null && lastBarValue !== name + value;
   lastBarValue = name + value;
   $bar.innerHTML = `<div class="wrap estimate-inner">
@@ -230,19 +270,17 @@ function renderBar() {
 // Re-render result areas while keeping focus/caret in a control the visitor is using.
 function withFocus(fn) {
   const a = document.activeElement;
-  const id = a?.id, pos = a && 'selectionStart' in a ? (() => { try { return a.selectionStart; } catch { return null; } })() : null;
+  const id = a?.id;
   fn();
-  if (id) {
-    const el = document.getElementById(id);
-    if (el && el !== document.activeElement) { el.focus(); if (pos !== null) try { el.setSelectionRange(pos, pos); } catch { /* number inputs */ } }
-  }
+  if (id) { const el = document.getElementById(id); if (el && el !== document.activeElement) el.focus(); }
 }
 function renderResult() {
   withFocus(() => {
     const aside = $main.querySelector('.quick-price');
     if (aside) aside.innerHTML = resultPanel();
     const cmp = $main.querySelector('#compare-wrap');
-    if (cmp) cmp.innerHTML = compareSection();
+    const wasOpen = Boolean(cmp?.querySelector('#compare')?.open);
+    if (cmp) cmp.innerHTML = compareSection(wasOpen);
   });
   renderBar();
 }
@@ -252,9 +290,9 @@ function render() {
   $main.innerHTML = `
   <section class="intro">
     <h1>Find the right NWIOI track for you</h1>
-    <p>Answer a few quick questions. We’ll suggest the NWIOI track that fits where you are, and show NWIOI tuition and what’s included.</p>
+    <p>Answer a few quick questions. We’ll show which NWIOI track might fit, what’s included, and what you’d pay NWIOI.</p>
     <p class="small muted">Your credential (set by AASECT) determines the training you need. Your NWIOI tier determines what you buy from NWIOI.</p>
-    ${config.preview ? '<p class="notice warn small">Preview mode: draft tuition and placeholder links are visible and labeled. The public sees only approved offers.</p>' : ''}
+    ${config.preview ? '<p class="notice warn small">Preview mode: draft prices and placeholder links are visible and labeled. The public sees only approved offers.</p>' : ''}
   </section>
   <div class="quick-grid">
     <div class="quick-inputs">
@@ -263,9 +301,9 @@ function render() {
       </section>
       ${p ? questions(p) : ''}
     </div>
-    <aside class="quick-price card" aria-label="Your recommended NWIOI track">${resultPanel()}</aside>
+    <aside class="quick-price card" aria-label="Your NWIOI track and tuition">${resultPanel()}</aside>
   </div>
-  <div id="compare-wrap">${compareSection()}</div>`;
+  <div id="compare-wrap">${compareSection(false)}</div>`;
   renderBar();
   $main.setAttribute('aria-busy', 'false');
 }
@@ -300,7 +338,7 @@ function requestEstimate(immediate = false) {
     try {
       const res = await fetch('/api/track-estimate', {
         method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal,
-        body: JSON.stringify({ path: state.path, education: state.education, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, coreSar: state.coreSar, modular: state.modular }),
+        body: JSON.stringify({ path: state.path, core: state.core, skills: state.skills, supervision: state.supervision, sar: state.sar, supervisionWhere: state.where, coreSar: state.coreSar, modular: state.modular }),
       });
       const body = await res.json();
       if (mine !== seq) return;
@@ -320,7 +358,8 @@ function setHours(key, value) {
   if (value === 'unsure' || value === null) state[key] = value;
   else state[key] = Math.max(0, Math.min(max, Math.round(Number(value))));
   // Hours answers change the suggested Modular quantities; drop stale overrides.
-  if (key === 'education') state.modular.ceus = null;
+  if (key === 'core') state.modular.coreCeus = null;
+  if (key === 'skills') state.modular.skillsCeus = null;
   if (key === 'supervision') { state.modular.individualHours = null; state.modular.groupSessions = null; }
   syncQuestion(key);
   requestEstimate();
@@ -345,8 +384,8 @@ $main.addEventListener('change', (ev) => {
   if (t.name === 'path') {
     const prev = state.path;
     state.path = t.value;
-    if (prev !== t.value) { state.modular = fresh().modular; state.coreSar = null; }
-    if (!deciding()) for (const k of ['education', 'supervision']) if (typeof state[k] === 'number') state[k] = Math.min(state[k], pathCfg().benchmarks[k]);
+    if (prev !== t.value) { state.modular = freshModular(); state.coreSar = null; }
+    if (!deciding()) for (const k of ['core', 'skills', 'supervision']) if (typeof state[k] === 'number') state[k] = Math.min(state[k], pathCfg().benchmarks[k]);
     result = null;
     render();
     $main.querySelector(`input[name="path"][value="${t.value}"]`)?.focus();
@@ -370,13 +409,14 @@ $main.addEventListener('click', (ev) => {
   if (!t) return;
   if (t.dataset.zero) setHours(t.dataset.zero, 0);
   else if (t.dataset.unsure) setHours(t.dataset.unsure, state[t.dataset.unsure] === 'unsure' ? null : 'unsure');
-  else if ('addCredits' in t.dataset) {
+  else if (t.dataset.addCredits) {
     const c = Number($main.querySelector('#credits-in').value);
     if (!(c > 0)) return;
+    const key = t.dataset.addCredits;
     const add = c * pathCfg().benchmarks.semesterCreditClockHours;
-    setHours('education', (typeof state.education === 'number' ? state.education : 0) + add);
+    setHours(key, (typeof state[key] === 'number' ? state[key] : 0) + add);
     $main.querySelector('#credits-in').value = '';
-    $main.querySelector('#credits-out').textContent = `Added ${add} hours.`;
+    $main.querySelector('#credits-out').textContent = `Added ${add} hours to ${key === 'core' ? 'core knowledge' : 'skills training'}.`;
   }
 });
 
