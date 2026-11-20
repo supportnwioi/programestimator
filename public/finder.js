@@ -183,14 +183,14 @@ function savingsBlock(pr) {
   const sv = pr.potentialSavings;
   if (!sv) return '';
   const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
-  const daysText = pr.days > 0 ? `About ${word(pr.days)} full day${pr.days === 1 ? '' : 's'} of training you could avoid repeating` : 'Training you could avoid repeating';
+  const daysText = pr.days > 0 ? `About ${word(pr.days)} full day${pr.days === 1 ? '' : 's'} of training you may not need to repeat` : 'Training you may not need to repeat';
   return `<div class="savings-block" data-testid="savings-block">
-    <p class="savings-lead" data-testid="savings-lead">Your prior training could save you ${plural(sv.hours, 'hour')}${sv.display ? ` and ${esc(sv.display)}` : ''} in additional coursework.</p>
+    <p class="savings-lead" data-testid="savings-lead">Your prior training could save you up to ${plural(sv.hours, 'hour')}${sv.display ? ` and ${esc(sv.display)}` : ''} in additional coursework.</p>
     <div class="savings-tiles">
       <div class="tile" data-testid="tile-hours"><strong data-testid="save-hours">${plural(sv.hours, 'hour')}</strong><span>${cap(daysText)}</span></div>
-      ${sv.display ? `<div class="tile" data-testid="tile-dollars"><strong data-testid="save-dollars">${esc(sv.display)}</strong><span>Potential coursework savings at ${esc(sv.rate)} per CEU${sv.draft ? ' <span class="chip warn">Draft rate · preview only</span>' : ''}</span></div>` : ''}
+      ${sv.display ? `<div class="tile" data-testid="tile-dollars"><strong data-testid="save-dollars">${esc(sv.display)}</strong><span>Up to this much in coursework you may not need to buy, at ${esc(sv.rate)} per CEU${sv.draft ? ' <span class="chip warn">Draft rate · preview only</span>' : ''}</span></div>` : ''}
     </div>
-    ${sv.display ? `<p class="small" data-testid="savings-sentence">If these hours count toward your credential and cover coursework you’d otherwise need to take, you could save about <strong>${esc(sv.display)}</strong> in additional course costs.</p>` : ''}
+    ${sv.display ? `<p class="small" data-testid="savings-sentence">These hours haven’t been reviewed yet. If they count toward your credential and cover coursework you’d otherwise need to take, you could save up to <strong>${esc(sv.display)}</strong> in additional course costs. Admissions will help you confirm which hours count.</p>` : ''}
   </div>`;
 }
 

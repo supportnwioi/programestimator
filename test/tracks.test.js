@@ -75,7 +75,7 @@ test('25 prior CEUs → 26 remaining → $910 additional → combined $9,110 / $
   assert.deepEqual(r.map((pr) => pr.combined.display), ['$9,110', '$8,360', '$7,860']);
   assert.deepEqual(r.map((pr) => pr.priorSavings.display), ['$875', '$875', '$875'], '25 counted hours × planning rate');
   assert.equal(est('sex_therapist', { core: 0, skills: 0 }).prior.priorSavings, null, 'no savings line when nothing counts');
-  assert.equal(est('sex_therapist', { core: 15, skills: 10 }, { preview: false }).prior.priorSavings, null, 'hidden while the planning rate is draft');
+  assert.equal(est('sex_therapist', { core: 15, skills: 10 }, { preview: false }).prior.priorSavings.display, '$875', 'planning rate approved: shows publicly');
 });
 
 test('outside coursework: CEUs taken elsewhere leave NWIOI tuition unchanged and add the cost the visitor enters', () => {
@@ -191,7 +191,7 @@ test('where prior learning came from: semester credits × 15; AASECT CE hour for
   assert.equal(est('sex_therapist', { college: { answer: 'no' }, ce: { answer: 'yes', unsure: 8 } }).prior.sources.state, 'unsure', 'only unsure credits → review');
   const pay = est('sex_therapist', { college: { answer: 'yes', unit: 'hours', amount: 20 }, ce: { answer: 'yes', aasect: 5 } }).prior.potentialSavings;
   assert.deepEqual([pay.hours, pay.display, pay.rate], [25, '$875', '$35'], '20 class hours + 5 AASECT CE');
-  assert.equal(est('sex_therapist', { college: { answer: 'yes', unit: 'hours', amount: 20 }, ce: { answer: 'yes', aasect: 5 } }, { preview: false }).prior.potentialSavings.display, null, 'dollars hidden while the rate is draft');
+  assert.equal(est('sex_therapist', { college: { answer: 'yes', unit: 'hours', amount: 20 }, ce: { answer: 'yes', aasect: 5 } }, { preview: false }).prior.potentialSavings.display, '$875', 'approved rate shows publicly');
   assert.equal(est('sex_therapist', { college: { answer: 'no' }, ce: { answer: 'no' } }).prior.potentialSavings, null);
   assert.equal(est('sex_therapist', { core: 60, skills: 29 }).prior.potentialSavings.display, '$3,115', 'category hours use the same count shown');
   const live = est('sex_therapist', { core: 30, skills: 5, liveCore: 10, liveSkills: 40 }).prior.live;
@@ -213,7 +213,7 @@ test('drafts are hidden publicly; approved offers and the scholarship link show'
   assert.equal(pub.prior.combined, null);
   assert.equal(pub.savings, null);
   const json = JSON.stringify(pub);
-  for (const leak of ['8,200', '7,626', '$910', '$35', '$195']) assert.ok(!json.includes(leak), `public payload leaks ${leak}`);
+  for (const leak of ['8,200', '7,626', '$195', '$650']) assert.ok(!json.includes(leak), `public payload leaks ${leak}`);
   assert.equal(pub.scholarship.application.url, 'https://forms.wix.com/f/7167298250691576552');
   const cat = structuredClone(DEFAULT_CATALOG);
   Object.assign(cat.credentials.sexuality_educator.core, { status: 'approved', paymentPlans: [{ label: '12 months', monthly: 600, months: 12, total: 7200, status: 'approved' }] });

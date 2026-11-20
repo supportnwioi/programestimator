@@ -577,8 +577,9 @@ test('Track finder (public): only approved offers show tuition; drafts and place
   await settled(page);
   assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
   assert.match(squash(await text(page, '[data-testid="result-body"]')), /About 30 hours/, 'hours result shows publicly');
-  const main = await page.textContent('main');
-  assert.ok(!/\$\d/.test(main), 'no draft dollar figures publicly');
+  const main = (await page.textContent('main')).replace(/\$\d[\d,]*(?= )/g, (m) => (m === '$30' ? '' : m));
+  const dollars = (await page.textContent('main')).match(/\$[\d,]+/g) || [];
+  assert.deepEqual([...new Set(dollars)], ['$1,050', '$35'], 'only approved savings figures publicly, no draft tuition');
   assert.doesNotMatch(main, /Draft|preview|Placeholder/i);
   await choose(page, 'sexuality_educator');
   await settled(page);
@@ -635,12 +636,12 @@ test('Track finder (preview): payoff — potential time and coursework savings s
   await college(page, 'yes', 20, 'hours');
   await ce(page, 'yes', { aasect: 5 });
   await settled(page);
-  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you 25 hours and $875 in additional coursework.');
+  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you up to 25 hours and $875 in additional coursework.');
   assert.equal(await text(page, '[data-testid="save-hours"]'), '25 hours');
-  assert.match(squash(await text(page, '[data-testid="tile-hours"]')), /About three full days of training you could avoid repeating/);
+  assert.match(squash(await text(page, '[data-testid="tile-hours"]')), /About three full days of training you may not need to repeat/);
   assert.equal(await text(page, '[data-testid="save-dollars"]'), '$875');
-  assert.match(squash(await text(page, '[data-testid="tile-dollars"]')), /Potential coursework savings at \$35 per CEU/);
-  assert.equal(squash(await text(page, '[data-testid="savings-sentence"]')), 'If these hours count toward your credential and cover coursework you’d otherwise need to take, you could save about $875 in additional course costs.');
+  assert.match(squash(await text(page, '[data-testid="tile-dollars"]')), /Up to this much in coursework you may not need to buy, at \$35 per CEU/);
+  assert.equal(squash(await text(page, '[data-testid="savings-sentence"]')), 'These hours haven’t been reviewed yet. If they count toward your credential and cover coursework you’d otherwise need to take, you could save up to $875 in additional course costs. Admissions will help you confirm which hours count.');
   // Side by side, directly under the heading and above the breakdown.
   const pos = await page.evaluate(() => {
     const r = (sel) => document.querySelector(sel).getBoundingClientRect();
@@ -679,13 +680,15 @@ test('Track finder (preview): payoff — potential time and coursework savings s
   await m.close();
 });
 
-test('Track finder (public): hours shown; dollar savings wait for an approved rate', async () => {
+test('Track finder (public): approved $35 rate shows the dollar savings publicly; Core tuition still draft', async () => {
   const page = await newPage(BASE);
   await choose(page, 'sex_therapist');
   await college(page, 'yes', 20, 'hours');
   await ce(page, 'yes', { aasect: 5 });
   await settled(page);
-  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you 25 hours in additional coursework.');
-  assert.equal(await page.locator('[data-testid="save-dollars"], [data-testid="savings-sentence"]').count(), 0);
+  assert.equal(squash(await text(page, '[data-testid="savings-lead"]')), 'Your prior training could save you up to 25 hours and $875 in additional coursework.');
+  assert.equal(await text(page, '[data-testid="save-dollars"]'), '$875');
+  assert.doesNotMatch(await text(page, '[data-testid="savings-block"]'), /Draft|preview/i);
+  assert.equal(await text(page, '[data-testid="rec-price"]'), 'Confirm Core tuition with admissions');
   await page.close();
 });

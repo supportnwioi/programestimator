@@ -88,10 +88,10 @@ Headline **“Build on the training you’ve already done.”** followed by one 
      - This works with no college coursework.
    - **I know my hours by category** (collapsed): Core Knowledge, skills training and live hours.
 4. **“Here’s what may count toward your education requirements”**, directly below the questions:
-   - **Payoff first:** “Your prior training could save you 25 hours and $875 in additional coursework.”
+   - **Payoff first:** “Your prior training could save you up to 25 hours and $875 in additional coursework.”
      - Two side-by-side tiles show the hours (with “about N full days”) and the hours × the $35 planning rate.
-     - Then: “If these hours count toward your credential and cover coursework you’d otherwise need to take, you could save about $875…”
-     - The tiles use the same preliminary hour count shown in the result, and appear only once there are hours. While the rate is a draft, the public sees hours only.
+     - Then: “These hours haven’t been reviewed yet. If they count toward your credential and cover coursework you’d otherwise need to take, you could save up to $875… Admissions will help you confirm which hours count.”
+     - The tiles use the same preliminary hour count shown in the result, and appear only once there are hours. The $35 planning rate is approved, so the dollar figures show publicly.
    - The hours that may count toward the 150, with college, CE and pending lines.
    - The required planning note: NWIOI helps review transcripts and CE certificates; AASECT makes the final determination.
    - Then **Review my prior training**.

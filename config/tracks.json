@@ -20,7 +20,7 @@
   },
   "planningRate": {
     "perCeu": 35,
-    "status": "draft",
+    "status": "approved",
     "_note": "Planning rate for additional NWIOI coursework beyond the 99 Core CEUs. Additional courses depend on current availability."
   },
   "library": {
